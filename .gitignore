@@ -4,6 +4,16 @@ target/
 !**/src/test/**/target/
 
 ### IntelliJ IDEA ###
+.gradle
+.idea/
+.intellijPlatform/
+!.idea/icon*.png
+*.iml
+build/
+src/main/gen
+src/main/resources/templates.list
+src/main/resources/gitignore/*
+src/main/resources/toptal/*
 .idea/modules.xml
 .idea/jarRepositories.xml
 .idea/compiler.xml
