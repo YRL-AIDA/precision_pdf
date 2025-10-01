@@ -4,7 +4,7 @@ import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
-import ru.sunveil.precision_pdf.pdfparser.extensions.PdfParseException;
+import ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfMetadata;
 import ru.sunveil.precision_pdf.pdfparser.parser.*;
 
@@ -32,16 +32,6 @@ public abstract class AbstractPdfBoxParser implements PdfParser, TextExtractor, 
                 metadata.setProducer(docInfo.getProducer());
                 metadata.setCreationDate(docInfo.getCreationDate().getTime());
                 metadata.setModificationDate(docInfo.getModificationDate().getTime());
-
-                for (COSName key : docInfo.getCOSObject().keySet()) {
-                    String keyName = key.getName();
-                    if (!isStandardMetadataKey(keyName)) {
-                        COSBase value = docInfo.getCOSObject().getDictionaryObject(key);
-                        if (value != null) {
-                            metadata.getCustomMetadata().put(keyName, value.toString());
-                        }
-                    }
-                }
             }
         } catch (Exception e) {
             throw new PdfParseException("Failed to extract metadata", e);

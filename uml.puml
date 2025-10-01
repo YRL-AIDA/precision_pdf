@@ -8,34 +8,25 @@ class ru.sunveil.precision_pdf.pdfparser.model.PdfTextChunk {
 }
 
 
-interface ru.sunveil.precision_pdf.pdfparser.export.IExporter {
-~ String export(PdfDocument,ExportFormat)
-~ boolean supportsFormat(ExportFormat)
-}
-
-interface ru.sunveil.precision_pdf.pdfparser.model.core.IPdfEntity {
-~ int getPageNumber()
-~ BoundingBox getBoundingBox()
-~ String getType()
-~ void setBoundingBox(BoundingBox)
-~ void setPageNumber(int)
-}
-
-interface ru.sunveil.precision_pdf.pdfparser.parser.ITableExtractor {
-~ List<Table> extractTables(PDDocument)
-}
-
 abstract class ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser {
-+ {abstract}PdfDocument parse(File)
++ PdfMetadata extractMetadata(PDDocument)
+- boolean isStandardMetadataKey(String)
+# void validateFile(File)
+# void closeDocument(PDDocument)
 }
 
 class ru.sunveil.precision_pdf.pdfparser.extensions.ExtensionManager {
 - Map<String,PdfParserExtension> extensions
 + void registerExtension(PdfParserExtension)
 + void unregisterExtension(String)
-+ List<IPdfEntity> processExtensions(PdfDocument)
++ List<PdfEntity> processExtensions(PdfDocument)
 }
 
+
+interface ru.sunveil.precision_pdf.pdfparser.parser.PdfParser {
+~ PdfDocument parse(File,ExtractionConfig)
+~ PdfMetadata extractMetadata(PDDocument)
+}
 
 class ru.sunveil.precision_pdf.pdfparser.util.GeometryUtils {
 + {static} boolean isOverlapping(BoundingBox,BoundingBox)
@@ -61,10 +52,8 @@ class ru.sunveil.precision_pdf.pdfparser.model.TextLine {
 }
 
 
-interface ru.sunveil.precision_pdf.pdfparser.parser.IImageExtractor {
-~ List<PdfImage> extractImages(PDDocument)
+class ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException {
 }
-
 class ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox {
 - float x
 - float y
@@ -106,11 +95,6 @@ class ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox {
 + {static} BoundingBox empty()
 }
 
-
-interface ru.sunveil.precision_pdf.pdfparser.parser.IPdfParser {
-~ PdfDocument parse(File)
-~ PdfMetadata extractMetadata(PDDocument)
-}
 
 interface ru.sunveil.precision_pdf.pdfparser.parser.TextExtractor {
 ~ List<PdfTextChunk> extractTextChunks(PDDocument)
@@ -174,10 +158,10 @@ class ru.sunveil.precision_pdf.pdfparser.model.PdfDocument {
 
 class ru.sunveil.precision_pdf.pdfparser.parser.PdfParseFactory {
 - ParserConfig parserConfig
-+ IPdfParser createParser()
-+ IPdfParser createParser(ParserType)
-+ IPdfParser createParser(ParserType,ParserConfig)
-- IPdfParser createPdfBoxParser(ParserConfig)
++ PdfParser createParser()
++ PdfParser createParser(ParserType)
++ PdfParser createParser(ParserType,ParserConfig)
+- PdfParser createPdfBoxParser(ParserConfig)
 - void configureParser(AbstractPdfBoxParser,ParserConfig)
 }
 
@@ -196,20 +180,49 @@ abstract class ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity {
 
 
 abstract class ru.sunveil.precision_pdf.pdfparser.extensions.PdfParserExtension {
-+ {abstract}List<IPdfEntity> extractExtendedEntities(PdfDocument)
++ {abstract}List<PdfEntity> extractExtendedEntities(PdfDocument)
 + {abstract}String getExtensionName()
 }
+
+class ru.sunveil.precision_pdf.pdfparser.parser.SimpleParser {
+# PDDocument currentDocument
+# ExtractionConfig extractionConfig
++ PdfDocument parse(File,ExtractionConfig)
+# PdfDocument parseDocument(PDDocument,String)
+# List<PdfPage> extractPages(PDDocument)
+# PdfPage extractPage(PDPage,int)
+# List<PdfImage> extractImagesFromPage(PDPage,int)
++ List<PdfTextChunk> extractTextChunks(PDDocument)
++ List<TextLine> extractTextLines(PDDocument)
++ List<Word> extractWords(PDDocument)
++ List<PdfImage> extractImages(PDDocument)
++ List<Table> extractTables(PDDocument)
+# ExtractionConfig getDefaultExtractionConfig()
+# void setCurrentDocument(PDDocument)
+# PDDocument getCurrentDocument()
+# ExtractionConfig getExtractionConfig()
+}
+
 
 class ru.sunveil.precision_pdf.pdfparser.export.PdfExporter {
 }
 class ru.sunveil.precision_pdf.pdfparser.export.ExporterFactory {
-- List<IExporter> exporters
-+ IExporter getExporter(ExportFormat)
+- List<Exporter> exporters
++ Exporter getExporter(ExportFormat)
 }
 
 
-class ru.sunveil.precision_pdf.pdfparser.parser.MetadataExtractor {
-- {static} PdfMetadata extractMetadata(PDDocument)
+interface ru.sunveil.precision_pdf.pdfparser.export.Exporter {
+~ String export(PdfDocument,ExportFormat)
+~ boolean supportsFormat(ExportFormat)
+}
+
+interface ru.sunveil.precision_pdf.pdfparser.model.core.PdfEntity {
+~ int getPageNumber()
+~ BoundingBox getBoundingBox()
+~ String getType()
+~ void setBoundingBox(BoundingBox)
+~ void setPageNumber(int)
 }
 
 class ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig {
@@ -283,21 +296,9 @@ class ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine {
 }
 
 
-class ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.PdfBoxBaseParser {
-# PDDocument currentDocument
-# ExtractionConfig extractionConfig
-+ PdfDocument parse(File)
-+ PdfDocument parse(File,ExtractionConfig)
-# PdfDocument parseDocument(PDDocument,String)
-# List<PdfPage> extractPages(PDDocument)
-# PdfPage extractPage(PDPage,int)
-+ List<PdfImage> extractImages(PDDocument)
-+ List<Table> extractTables(PDDocument)
-+ List<PdfTextChunk> extractTextChunks(PDDocument)
-+ List<TextLine> extractTextLines(PDDocument)
-+ List<Word> extractWords(PDDocument)
+interface ru.sunveil.precision_pdf.pdfparser.parser.ImageExtractor {
+~ List<PdfImage> extractImages(PDDocument)
 }
-
 
 class ru.sunveil.precision_pdf.pdfparser.config.ParserConfig {
 - String parserType
@@ -334,17 +335,19 @@ class ru.sunveil.precision_pdf.service.PrecisionPdfExtractionService {
 - ExtractionConfig extractionConfig
 - ExporterFactory exporterFactory
 - {static} Logger logger
-+ String processPdf(MultipartFile,ExportFormat)
 + String processPdf(MultipartFile,ExportFormat,ExtractionConfig)
-+ PdfDocument parsePdf(MultipartFile)
 + PdfDocument parsePdf(MultipartFile,ExtractionConfig)
-- PdfDocument parseWithConfig(IPdfParser,File,ExtractionConfig)
+- PdfDocument parseWithConfig(PdfParser,File,ExtractionConfig)
 + ExtractionConfig getDefaultConfig()
 }
 
 
 class ru.sunveil.precision_pdf.pdfparser.config.AppConfig {
 }
+interface ru.sunveil.precision_pdf.pdfparser.parser.TableExtractor {
+~ List<Table> extractTables(PDDocument)
+}
+
 class ru.sunveil.precision_pdf.pdfparser.model.PdfPage {
 - int pageNumber
 - double width
@@ -370,18 +373,19 @@ class ru.sunveil.precision_pdf.pdfparser.model.ExtractionResult {
 
 
 ru.sunveil.precision_pdf.pdfparser.model.TextEntity <|-- ru.sunveil.precision_pdf.pdfparser.model.PdfTextChunk
-ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.IPdfParser <|.. ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser
+ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.PdfParser <|.. ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser
 ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractor <|.. ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser
-ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ITableExtractor <|.. ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser
-ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.IImageExtractor <|.. ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser
+ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TableExtractor <|.. ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser
+ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractor <|.. ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser
 ru.sunveil.precision_pdf.pdfparser.model.TextEntity <|-- ru.sunveil.precision_pdf.pdfparser.model.TextLine
-ru.sunveil.precision_pdf.pdfparser.export.IExporter <|.. ru.sunveil.precision_pdf.pdfparser.export.TextExporter
-ru.sunveil.precision_pdf.pdfparser.model.IPdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.PdfImage
-ru.sunveil.precision_pdf.pdfparser.export.IExporter <|.. ru.sunveil.precision_pdf.pdfparser.export.JsonExporter
-ru.sunveil.precision_pdf.pdfparser.model.core.IPdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity
-ru.sunveil.precision_pdf.pdfparser.model.IPdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.Table
+ru.sunveil.precision_pdf.pdfparser.exceptions.RuntimeException <|-- ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException
+ru.sunveil.precision_pdf.pdfparser.export.Exporter <|.. ru.sunveil.precision_pdf.pdfparser.export.TextExporter
+ru.sunveil.precision_pdf.pdfparser.model.PdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.PdfImage
+ru.sunveil.precision_pdf.pdfparser.export.Exporter <|.. ru.sunveil.precision_pdf.pdfparser.export.JsonExporter
+ru.sunveil.precision_pdf.pdfparser.model.core.PdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity
+ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser <|-- ru.sunveil.precision_pdf.pdfparser.parser.SimpleParser
+ru.sunveil.precision_pdf.pdfparser.model.PdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.Table
 ru.sunveil.precision_pdf.pdfparser.model.TextEntity <|-- ru.sunveil.precision_pdf.pdfparser.model.Word
 org.apache.pdfbox.text.PDFTextStripper <|-- ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine
-ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser <|-- ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.PdfBoxBaseParser
-ru.sunveil.precision_pdf.pdfparser.model.IPdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.TableCell
+ru.sunveil.precision_pdf.pdfparser.model.PdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.TableCell
 @enduml

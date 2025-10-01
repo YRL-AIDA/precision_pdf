@@ -1,284 +1,143 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrecisionPDF - Advanced PDF Parsing Tool</title>
+    <title th:text="${title}">PDF Text Extractor</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
 </head>
 <body>
 <div class="container">
-    <header>
-        <div class="logo">
-            <div class="logo-icon">📊</div>
-            <h1>PrecisionPDF</h1>
+    <div class="header">
+        <h1>📄 PDF Text Extractor</h1>
+        <p>Загрузите PDF файл для извлечения текста</p>
+    </div>
+
+    <div class="content">
+        <!-- Сообщения об ошибках/успехе -->
+        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+        <div th:if="${success}" class="alert alert-success">
+            Текст успешно извлечен из файла!
         </div>
-        <p class="subtitle">Advanced PDF Text Extraction and Analysis Platform</p>
-    </header>
 
-    <div class="main-content">
-        <div class="sidebar">
-            <div class="sidebar-section">
-                <h3>📁 Upload PDF</h3>
-                <div class="file-upload" onclick="document.getElementById('fileInput').click()">
-                    <div class="upload-icon">📂</div>
-                    <div class="upload-text">Click to upload PDF file</div>
-                    <input type="file" id="fileInput" accept=".pdf" onchange="handleFileUpload(this.files)">
-                </div>
-            </div>
+        <!-- Секция загрузки -->
+        <div th:unless="${success}" class="upload-section" id="uploadSection">
+            <form id="uploadForm" th:action="@{/api/pdf/extract/text}" method="post" enctype="multipart/form-data">
+                <input type="file" id="pdfFile" name="pdfFile" class="file-input" accept=".pdf" required>
+                <button type="button" class="upload-btn" onclick="document.getElementById('pdfFile').click()">
+                    📁 Выберите PDF файл
+                </button>
+                <div class="file-info" id="fileInfo"></div>
+                <button type="submit" class="upload-btn" id="submitBtn" style="display: none;">
+                    🔍 Извлечь текст
+                </button>
+            </form>
 
-            <div class="sidebar-section">
-                <h3>⚙️ Parse Settings</h3>
-                <div class="form-group">
-                    <label>Entity Types:</label>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="parseWords" checked>
-                        <label for="parseWords">Words</label>
-                    </div>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="parseLines" checked>
-                        <label for="parseLines">Lines</label>
-                    </div>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="parseParagraphs">
-                        <label for="parseParagraphs">Paragraphs</label>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="confidenceThreshold">Confidence Threshold:</label>
-                    <input type="range" id="confidenceThreshold" min="0" max="1" step="0.1" value="0.8">
-                    <span id="confidenceValue">0.8</span>
-                </div>
-
-                <div class="form-group">
-                    <label for="language">Language:</label>
-                    <select id="language">
-                        <option value="en">English</option>
-                        <option value="ru">Russian</option>
-                        <option value="de">German</option>
-                        <option value="fr">French</option>
-                        <option value="es">Spanish</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="sidebar-section">
-                <h3>🔧 Actions</h3>
-                <button class="btn btn-success" onclick="startParsing()">🚀 Start Parsing</button>
-                <button class="btn" onclick="exportResults()">💾 Export Results</button>
-                <button class="btn btn-secondary" onclick="clearAll()">🗑️ Clear All</button>
-            </div>
-
-            <div class="status-bar">
-                <div class="status-icon">⏳</div>
-                <div class="progress-bar">
-                    <div class="progress" id="progressBar"></div>
-                </div>
-                <span id="statusText">Ready</span>
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <p>Обработка PDF файла...</p>
             </div>
         </div>
 
-        <div class="content">
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('entities')">📋 Entities</button>
-                <button class="tab" onclick="showTab('raw-text')">📝 Raw Text</button>
-                <button class="tab" onclick="showTab('statistics')">📊 Statistics</button>
-                <button class="tab" onclick="showTab('settings')">⚙️ Advanced</button>
-            </div>
-
-            <div id="entities" class="form-section active">
-                <h2>Extracted Entities</h2>
-                <div class="entities-list" id="entitiesList">
-                    <div class="entity-item">
-                        <div class="entity-header">
-                            <span class="entity-type">WORD</span>
-                            <span>Page 1</span>
-                        </div>
-                        <div class="entity-content">Sample text content</div>
-                    </div>
+        <!-- Секция результатов -->
+        <div th:if="${success}" class="result-section show" id="resultSection">
+            <div class="result-header">
+                <h2>Результат извлечения</h2>
+                <div class="file-info">
+                    Файл: <strong th:text="${filename}"></strong> |
+                    Размер: <strong th:text="${#numbers.formatDecimal(fileSize/1024, 1, 2)} + ' KB'"></strong> |
+                    Время: <strong th:text="${processingTime} + ' ms'"></strong>
                 </div>
             </div>
 
-            <div id="raw-text" class="form-section">
-                <h2>Document Raw Text</h2>
-                <div class="form-group">
-                    <textarea id="rawTextOutput" rows="15" placeholder="Extracted text will appear here..." readonly></textarea>
-                </div>
+            <div class="result-stats">
+                Извлечено символов: <strong th:text="${#strings.length(text)}"></strong>
             </div>
 
-            <div id="statistics" class="form-section">
-                <h2>Document Statistics</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value" id="pageCount">0</div>
-                        <div class="stat-label">Total Pages</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="wordCount">0</div>
-                        <div class="stat-label">Total Words</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="lineCount">0</div>
-                        <div class="stat-label">Total Lines</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="confidenceAvg">0%</div>
-                        <div class="stat-label">Avg Confidence</div>
-                    </div>
-                </div>
-            </div>
+            <div class="result-text" id="extractedText" th:text="${text}"></div>
 
-            <div id="settings" class="form-section">
-                <h2>Advanced Settings</h2>
-                <div class="form-group">
-                    <label for="outputFormat">Export Format:</label>
-                    <select id="outputFormat">
-                        <option value="json">JSON</option>
-                        <option value="xml">XML</option>
-                        <option value="csv">CSV</option>
-                        <option value="text">Plain Text</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="pageRange">Page Range:</label>
-                    <input type="text" id="pageRange" placeholder="1-5,7,9-12">
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="preserveLayout" checked>
-                    <label for="preserveLayout">Preserve Layout</label>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="extractMetadata">
-                    <label for="extractMetadata">Extract Metadata</label>
-                </div>
-            </div>
-
-            <div class="output">
-                <h3>Parsing Results:</h3>
-                <pre id="outputCode">// Parsing results will appear here after processing</pre>
-            </div>
+            <button class="copy-btn" onclick="copyToClipboard()">📋 Копировать текст</button>
+            <button class="new-extraction" onclick="newExtraction()">🔄 Новое извлечение</button>
         </div>
     </div>
 </div>
 
 <script>
-    function showTab(tabName) {
-        document.querySelectorAll('.form-section').forEach(tab => {
-            tab.classList.remove('active');
-        });
+    // Обработка выбора файла
+    document.getElementById('pdfFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const fileInfo = document.getElementById('fileInfo');
+        const submitBtn = document.getElementById('submitBtn');
 
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-
-        document.getElementById(tabName).classList.add('active');
-        document.querySelector(`.tab[onclick="showTab('${tabName}')"]`).classList.add('active');
-    }
-
-    function handleFileUpload(files) {
-        if (files.length > 0) {
-            const file = files[0];
-            document.querySelector('.upload-text').textContent = `File: ${file.name}`;
-            updateStatus(`Uploaded: ${file.name}`, 25);
+        if (file) {
+            fileInfo.innerHTML = `
+                    Выбран файл: <strong>${file.name}</strong><br>
+                    Размер: <strong>${(file.size/1024).toFixed(2)} KB</strong>
+                `;
+            submitBtn.style.display = 'inline-block';
+        } else {
+            fileInfo.innerHTML = '';
+            submitBtn.style.display = 'none';
         }
-    }
-
-    function startParsing() {
-        updateStatus('Parsing started...', 50);
-        // Simulate parsing process
-        setTimeout(() => {
-            updateStatus('Parsing completed', 100);
-            showSampleResults();
-            updateStatistics();
-        }, 2000);
-    }
-
-    function exportResults() {
-        alert('Export functionality will be implemented in future versions');
-    }
-
-    function clearAll() {
-        document.getElementById('fileInput').value = '';
-        document.querySelector('.upload-text').textContent = 'Click to upload PDF file';
-        document.getElementById('entitiesList').innerHTML = '';
-        document.getElementById('rawTextOutput').value = '';
-        document.getElementById('outputCode').textContent = '// Parsing results will appear here after processing';
-        updateStatus('Ready', 0);
-        resetStatistics();
-    }
-
-    function updateStatus(text, progress) {
-        document.getElementById('statusText').textContent = text;
-        document.getElementById('progressBar').style.width = progress + '%';
-    }
-
-    function showSampleResults() {
-        const sampleData = {
-            words: [
-                { text: "Precision", confidence: 0.96, page: 1, bbox: [10, 20, 60, 15] },
-                { text: "PDF", confidence: 0.98, page: 1, bbox: [75, 20, 30, 15] },
-                { text: "Advanced", confidence: 0.94, page: 1, bbox: [110, 20, 70, 15] }
-            ],
-            lines: [
-                { text: "Precision PDF Advanced", page: 1, bbox: [10, 20, 170, 15] }
-            ],
-            metadata: {
-                title: "Sample Document",
-                author: "PrecisionPDF",
-                created: "2024-01-15"
-            }
-        };
-
-        document.getElementById('outputCode').textContent = JSON.stringify(sampleData, null, 2);
-        document.getElementById('rawTextOutput').value = "Precision PDF Advanced\nText extraction and analysis platform\nHigh accuracy parsing results";
-    }
-
-    function updateStatistics() {
-        document.getElementById('pageCount').textContent = "1";
-        document.getElementById('wordCount').textContent = "3";
-        document.getElementById('lineCount').textContent = "1";
-        document.getElementById('confidenceAvg').textContent = "96%";
-    }
-
-    function resetStatistics() {
-        document.getElementById('pageCount').textContent = "0";
-        document.getElementById('wordCount').textContent = "0";
-        document.getElementById('lineCount').textContent = "0";
-        document.getElementById('confidenceAvg').textContent = "0%";
-    }
-
-    // Initialize
-    document.getElementById('confidenceThreshold').addEventListener('input', function() {
-        document.getElementById('confidenceValue').textContent = this.value;
     });
 
-    // Add some sample entities
-    const entitiesList = document.getElementById('entitiesList');
-    entitiesList.innerHTML = `
-            <div class="entity-item">
-                <div class="entity-header">
-                    <span class="entity-type">WORD</span>
-                    <span>Page 1</span>
-                </div>
-                <div class="entity-content">Precision</div>
-            </div>
-            <div class="entity-item">
-                <div class="entity-header">
-                    <span class="entity-type">WORD</span>
-                    <span>Page 1</span>
-                </div>
-                <div class="entity-content">PDF</div>
-            </div>
-            <div class="entity-item">
-                <div class="entity-header">
-                    <span class="entity-type">LINE</span>
-                    <span>Page 1</span>
-                </div>
-                <div class="entity-content">Precision PDF Advanced</div>
-            </div>
-        `;
+    // Drag and drop функциональность
+    const uploadSection = document.getElementById('uploadSection');
+
+    uploadSection.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+    });
+
+    uploadSection.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+    });
+
+    uploadSection.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('pdfFile');
+            fileInput.files = files;
+
+            // Триггерим событие change
+            const event = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(event);
+        }
+    });
+
+    // Обработка отправки формы
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('submitBtn').style.display = 'none';
+    });
+
+    // Копирование текста в буфер обмена
+    function copyToClipboard() {
+        const text = document.getElementById('extractedText').textContent;
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Текст скопирован в буфер обмена!');
+        }, function(err) {
+            console.error('Ошибка копирования: ', err);
+        });
+    }
+
+    // Новое извлечение
+    function newExtraction() {
+        window.location.href = '/';
+    }
+
+    // Автофокус на поле файла при загрузке страницы
+    window.addEventListener('load', function() {
+        const fileInput = document.getElementById('pdfFile');
+        if (fileInput && !fileInput.files.length) {
+            fileInput.value = '';
+        }
+    });
 </script>
 </body>
 </html>

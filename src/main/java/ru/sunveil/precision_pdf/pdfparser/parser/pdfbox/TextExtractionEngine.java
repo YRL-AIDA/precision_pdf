@@ -73,13 +73,11 @@ public class TextExtractionEngine extends PDFTextStripper {
     public List<PdfTextChunk> extractTextChunks(PDDocument document) throws IOException {
         resetExtractionState();
 
-        List<PDPage> pages = (List<PDPage>) document.getPages();
-        for (int i = 0; i < pages.size(); i++) {
+        int i = 0;
+        for (PDPage page: document.getPages()) {
             currentPageNumber = i + 1;
-            currentPage = pages.get(i);
-            PDRectangle pageSize = currentPage.getMediaBox();
+            PDRectangle pageSize = page.getMediaBox();
             pageHeight = pageSize.getHeight();
-
             setStartPage(currentPageNumber);
             setEndPage(currentPageNumber);
 
