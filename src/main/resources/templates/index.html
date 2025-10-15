@@ -1,141 +1,1116 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${title}">PDF Text Extractor</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Precision PDF - Сервис обработки PDF</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .logo-icon {
+            font-size: 1.8rem;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 1.5rem;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: var(--primary-color);
+        }
+
+        .hero {
+            padding: 3rem 0;
+            text-align: center;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+
+        .hero h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h3 {
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background-color: #f0f9ff;
+        }
+
+        .upload-area.active {
+            border-color: var(--primary-color);
+            background-color: #e0f2fe;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        .btn-success {
+            background-color: var(--success-color);
+        }
+
+        .btn-success:hover {
+            background-color: #0d9668;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .btn-outline:hover {
+            background-color: #f0f9ff;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .option-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .file-info {
+            display: none;
+            background-color: #f0f9ff;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .file-info h4 {
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+        }
+
+        .file-details {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .file-detail {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-detail span:first-child {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .file-detail span:last-child {
+            color: var(--text-primary);
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .metadata-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metadata-table th, .metadata-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .metadata-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .text-content {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            background-color: #f8fafc;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .image-item {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .image-info {
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background-color: #f8fafc;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: var(--error-color);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .success-message {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: var(--success-color);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        footer {
+            background-color: var(--card-bg);
+            padding: 2rem 0;
+            margin-top: 3rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .footer-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            nav ul {
+                gap: 1rem;
+            }
+
+            .hero h2 {
+                font-size: 2rem;
+            }
+
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h1>📄 PDF Text Extractor</h1>
-        <p>Загрузите PDF файл для извлечения текста</p>
-    </div>
-
-    <div class="content">
-        <!-- Сообщения об ошибках/успехе -->
-        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
-        <div th:if="${success}" class="alert alert-success">
-            Текст успешно извлечен из файла!
-        </div>
-
-        <!-- Секция загрузки -->
-        <div th:unless="${success}" class="upload-section" id="uploadSection">
-            <form id="uploadForm" th:action="@{/api/pdf/extract/text}" method="post" enctype="multipart/form-data">
-                <input type="file" id="pdfFile" name="pdfFile" class="file-input" accept=".pdf" required>
-                <button type="button" class="upload-btn" onclick="document.getElementById('pdfFile').click()">
-                    📁 Выберите PDF файл
-                </button>
-                <div class="file-info" id="fileInfo"></div>
-                <button type="submit" class="upload-btn" id="submitBtn" style="display: none;">
-                    🔍 Извлечь текст
-                </button>
-            </form>
-
-            <div class="loading" id="loading">
-                <div class="loading-spinner"></div>
-                <p>Обработка PDF файла...</p>
+<header>
+    <div class="container">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">📄</span>
+                <h1>Precision PDF</h1>
             </div>
+            <nav>
+                <ul>
+                    <li><a href="#upload">Обработка PDF</a></li>
+                    <li><a href="#features">Возможности</a></li>
+                    <li><a href="#about">О сервисе</a></li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</header>
+
+<section class="hero">
+    <div class="container">
+        <h2>Мощный инструмент для обработки PDF-документов</h2>
+        <p>Извлекайте текст, изображения, таблицы и метаданные из PDF-файлов с высокой точностью и удобным веб-интерфейсом.</p>
+        <a href="#upload" class="btn">Начать обработку</a>
+    </div>
+</section>
+
+<main class="container">
+    <section id="upload" class="card">
+        <h3>Загрузка PDF-файла</h3>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <p class="upload-text">Перетащите PDF-файл сюда или нажмите для выбора</p>
+            <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+            <button class="btn" id="selectFileBtn">Выбрать файл</button>
         </div>
 
-        <!-- Секция результатов -->
-        <div th:if="${success}" class="result-section show" id="resultSection">
-            <div class="result-header">
-                <h2>Результат извлечения</h2>
-                <div class="file-info">
-                    Файл: <strong th:text="${filename}"></strong> |
-                    Размер: <strong th:text="${#numbers.formatDecimal(fileSize/1024, 1, 2)} + ' KB'"></strong> |
-                    Время: <strong th:text="${processingTime} + ' ms'"></strong>
+        <div class="file-info" id="fileInfo">
+            <h4>Информация о файле</h4>
+            <div class="file-details">
+                <div class="file-detail">
+                    <span>Имя файла:</span>
+                    <span id="fileName">-</span>
+                </div>
+                <div class="file-detail">
+                    <span>Размер:</span>
+                    <span id="fileSize">-</span>
+                </div>
+                <div class="file-detail">
+                    <span>Тип:</span>
+                    <span id="fileType">-</span>
                 </div>
             </div>
+        </div>
 
-            <div class="result-stats">
-                Извлечено символов: <strong th:text="${#strings.length(text)}"></strong>
+        <h3>Параметры извлечения</h3>
+        <div class="options-grid">
+            <div class="option-item">
+                <input type="checkbox" id="extractText" checked>
+                <label for="extractText">Извлечь текст</label>
             </div>
+            <div class="option-item">
+                <input type="checkbox" id="extractImages">
+                <label for="extractImages">Извлечь изображения</label>
+            </div>
+            <div class="option-item">
+                <input type="checkbox" id="extractTables">
+                <label for="extractTables">Извлечь таблицы</label>
+            </div>
+            <div class="option-item">
+                <input type="checkbox" id="extractMetadata" checked>
+                <label for="extractMetadata">Извлечь метаданные</label>
+            </div>
+            <div class="option-item">
+                <input type="checkbox" id="preserveLayout">
+                <label for="preserveLayout">Сохранить структуру</label>
+            </div>
+        </div>
 
-            <div class="result-text" id="extractedText" th:text="${text}"></div>
+        <div class="option-item">
+            <label for="outputFormat">Формат вывода:</label>
+            <select id="outputFormat">
+                <option value="JSON">JSON</option>
+                <option value="TEXT">Текст</option>
+                <option value="HTML">HTML</option>
+                <option value="CSV">CSV</option>
+            </select>
+        </div>
 
-            <button class="copy-btn" onclick="copyToClipboard()">📋 Копировать текст</button>
-            <button class="new-extraction" onclick="newExtraction()">🔄 Новое извлечение</button>
+        <div style="margin-top: 1.5rem; text-align: center;">
+            <button class="btn btn-success" id="processBtn" disabled>Обработать PDF</button>
+            <button class="btn btn-secondary" id="metadataOnlyBtn" disabled>Только метаданные</button>
+        </div>
+    </section>
+
+    <div class="loading" id="loadingIndicator">
+        <div class="spinner"></div>
+        <p>Обработка PDF-файла...</p>
+    </div>
+
+    <section class="results-section card" id="resultsSection">
+        <h3>Результаты обработки</h3>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="metadata">Метаданные</div>
+            <div class="tab" data-tab="text">Текст</div>
+            <div class="tab" data-tab="export">Экспорт</div>
+        </div>
+
+        <div class="tab-content active" id="metadataTab">
+            <table class="metadata-table">
+                <thead>
+                <tr>
+                    <th>Параметр</th>
+                    <th>Значение</th>
+                </tr>
+                </thead>
+                <tbody id="metadataTable">
+                <!-- Данные будут заполнены динамически -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tab-content" id="textTab">
+            <div class="text-content" id="textContent">
+                <!-- Текст будет заполнен динамически -->
+            </div>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn btn-outline" id="copyTextBtn">Копировать текст</button>
+                <button class="btn" id="downloadTextBtn">Скачать как TXT</button>
+            </div>
+        </div>
+
+        <div class="tab-content" id="exportTab">
+            <div style="margin-bottom: 1rem;">
+                <label for="exportFormat">Формат экспорта:</label>
+                <select id="exportFormat">
+                    <option value="json">JSON</option>
+                    <option value="xml">XML</option>
+                    <option value="html">HTML</option>
+                    <option value="csv">CSV</option>
+                </select>
+            </div>
+            <div class="text-content" id="exportContent">
+                <!-- Экспортированные данные будут отображены здесь -->
+            </div>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn" id="downloadExportBtn">Скачать</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="card">
+        <h3>Возможности сервиса</h3>
+        <div class="options-grid">
+            <div class="option-item">
+                <span>✅</span>
+                <div>
+                    <strong>Точное извлечение текста</strong>
+                    <p>Сохранение структуры и форматирования текста</p>
+                </div>
+            </div>
+            <div class="option-item">
+                <span>✅</span>
+                <div>
+                    <strong>Извлечение изображений</strong>
+                    <p>Высококачественное извлечение с сохранением разрешения</p>
+                </div>
+            </div>
+            <div class="option-item">
+                <span>✅</span>
+                <div>
+                    <strong>Распознавание таблиц</strong>
+                    <p>Автоматическое определение и извлечение табличных данных</p>
+                </div>
+            </div>
+            <div class="option-item">
+                <span>✅</span>
+                <div>
+                    <strong>Метаданные документа</strong>
+                    <p>Полная информация о документе и его свойствах</p>
+                </div>
+            </div>
+            <div class="option-item">
+                <span>✅</span>
+                <div>
+                    <strong>Поддержка Bounding Box</strong>
+                    <p>Точное позиционирование элементов на странице</p>
+                </div>
+            </div>
+            <div class="option-item">
+                <span>✅</span>
+                <div>
+                    <strong>Множество форматов экспорта</strong>
+                    <p>JSON, XML, HTML, CSV и другие форматы вывода</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="about" class="card">
+        <h3>О сервисе Precision PDF</h3>
+        <p>Precision PDF - это мощный сервис для обработки PDF-документов, построенный на основе современной архитектуры с использованием Spring Boot и PDFBox. Сервис предоставляет точное извлечение текста, изображений, таблиц и метаданных с сохранением структуры документа.</p>
+        <p>Основные компоненты системы:</p>
+        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+            <li><strong>PrecisionPdfController</strong> - обработка HTTP-запросов</li>
+            <li><strong>PrecisionPdfExtractionService</strong> - основной сервис обработки PDF</li>
+            <li><strong>TextExtractionEngine</strong> - движок для точного извлечения текста</li>
+            <li><strong>BoundingBox</strong> - модель для точного позиционирования элементов</li>
+            <li><strong>ExporterFactory</strong> - система экспорта в различные форматы</li>
+        </ul>
+    </section>
+</main>
+
+<footer>
+    <div class="container">
+        <div class="footer-content">
+            <div class="logo">
+                <span class="logo-icon">📄</span>
+                <h1>Precision PDF</h1>
+            </div>
+            <div class="footer-links">
+                <a href="#">Документация</a>
+                <a href="#">API</a>
+                <a href="#">Контакты</a>
+                <a href="#">Политика конфиденциальности</a>
+            </div>
         </div>
     </div>
-</div>
+</footer>
 
 <script>
-    // Обработка выбора файла
-    document.getElementById('pdfFile').addEventListener('change', function(e) {
-        const file = e.target.files[0];
+    // Базовый URL API - замените на ваш реальный URL
+    const API_BASE_URL = '/api/pdf';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Элементы интерфейса
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const selectFileBtn = document.getElementById('selectFileBtn');
         const fileInfo = document.getElementById('fileInfo');
-        const submitBtn = document.getElementById('submitBtn');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const fileType = document.getElementById('fileType');
+        const processBtn = document.getElementById('processBtn');
+        const metadataOnlyBtn = document.getElementById('metadataOnlyBtn');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
 
-        if (file) {
-            fileInfo.innerHTML = `
-                    Выбран файл: <strong>${file.name}</strong><br>
-                    Размер: <strong>${(file.size/1024).toFixed(2)} KB</strong>
-                `;
-            submitBtn.style.display = 'inline-block';
-        } else {
-            fileInfo.innerHTML = '';
-            submitBtn.style.display = 'none';
+        // Элементы вкладок
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // Текущий файл и результаты
+        let currentFile = null;
+        let extractionResults = null;
+
+        // Инициализация
+        initializeEventListeners();
+        loadSupportedFormats();
+
+        function initializeEventListeners() {
+            // Обработчики событий для загрузки файла
+            selectFileBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', handleFileSelect);
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('active');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('active');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('active');
+
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    handleFileSelect();
+                }
+            });
+
+            // Обработчики для кнопок обработки
+            processBtn.addEventListener('click', processPdf);
+            metadataOnlyBtn.addEventListener('click', extractMetadataOnly);
+
+            // Обработчики для вкладок
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+
+                    // Убираем активный класс у всех вкладок и контента
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(tc => tc.classList.remove('active'));
+
+                    // Добавляем активный класс к выбранной вкладке и контенту
+                    tab.classList.add('active');
+                    document.getElementById(`${tabId}Tab`).classList.add('active');
+
+                    // Если это вкладка экспорта, генерируем данные для экспорта
+                    if (tabId === 'export' && extractionResults) {
+                        generateExportData();
+                    }
+                });
+            });
         }
-    });
 
-    // Drag and drop функциональность
-    const uploadSection = document.getElementById('uploadSection');
+        // Функция загрузки поддерживаемых форматов
+        async function loadSupportedFormats() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/formats`);
+                const apiResponse = await response.json();
 
-    uploadSection.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadSection.classList.add('dragover');
-    });
-
-    uploadSection.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-    });
-
-    uploadSection.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadSection.classList.remove('dragover');
-
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            const fileInput = document.getElementById('pdfFile');
-            fileInput.files = files;
-
-            // Триггерим событие change
-            const event = new Event('change', { bubbles: true });
-            fileInput.dispatchEvent(event);
+                if (apiResponse.success) {
+                    console.log('Поддерживаемые форматы:', apiResponse.data);
+                } else {
+                    console.error('Ошибка загрузки форматов:', apiResponse.message);
+                }
+            } catch (error) {
+                console.error('Ошибка при загрузке форматов:', error);
+            }
         }
-    });
 
-    // Обработка отправки формы
-    document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        document.getElementById('loading').style.display = 'block';
-        document.getElementById('submitBtn').style.display = 'none';
-    });
+        // Функция обработки выбора файла
+        function handleFileSelect() {
+            if (fileInput.files.length === 0) return;
 
-    // Копирование текста в буфер обмена
-    function copyToClipboard() {
-        const text = document.getElementById('extractedText').textContent;
-        navigator.clipboard.writeText(text).then(function() {
-            alert('Текст скопирован в буфер обмена!');
-        }, function(err) {
-            console.error('Ошибка копирования: ', err);
-        });
-    }
+            const file = fileInput.files[0];
 
-    // Новое извлечение
-    function newExtraction() {
-        window.location.href = '/';
-    }
+            // Проверка типа файла
+            if (file.type !== 'application/pdf') {
+                showError('Пожалуйста, выберите файл в формате PDF.');
+                return;
+            }
 
-    // Автофокус на поле файла при загрузке страницы
-    window.addEventListener('load', function() {
-        const fileInput = document.getElementById('pdfFile');
-        if (fileInput && !fileInput.files.length) {
-            fileInput.value = '';
+            currentFile = file;
+
+            // Обновление информации о файле
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileType.textContent = file.type;
+
+            // Показать информацию о файле
+            fileInfo.style.display = 'block';
+
+            // Активировать кнопки обработки
+            processBtn.disabled = false;
+            metadataOnlyBtn.disabled = false;
+
+            // Скрыть предыдущие результаты и ошибки
+            resultsSection.style.display = 'none';
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+        }
+
+        // Функция обработки PDF (полное извлечение)
+        async function processPdf() {
+            if (!currentFile) return;
+
+            // Показать индикатор загрузки
+            loadingIndicator.style.display = 'block';
+            processBtn.disabled = true;
+            metadataOnlyBtn.disabled = true;
+
+            try {
+                // Получить параметры извлечения
+                const extractText = document.getElementById('extractText').checked;
+                const extractImages = document.getElementById('extractImages').checked;
+                const extractTables = document.getElementById('extractTables').checked;
+                const extractMetadata = document.getElementById('extractMetadata').checked;
+                const outputFormat = document.getElementById('outputFormat').value;
+
+                // Создать FormData для отправки файла и параметров
+                const formData = new FormData();
+                formData.append('pdfFile', currentFile);
+                formData.append('extractText', extractText);
+                formData.append('extractImages', extractImages);
+                formData.append('extractTables', extractTables);
+                formData.append('extractMetadata', extractMetadata);
+                formData.append('outputFormat', outputFormat);
+
+                // Отправить запрос к API
+                const response = await fetch(`${API_BASE_URL}/extract/text`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const apiResponse = await response.json();
+
+                // Скрыть индикатор загрузки
+                loadingIndicator.style.display = 'none';
+
+                if (apiResponse.success) {
+                    extractionResults = apiResponse.data;
+                    displayResults(extractionResults, apiResponse.message, apiResponse.processingTimeMs);
+                    showSuccess(`PDF успешно обработан за ${apiResponse.processingTimeMs} мс`);
+                } else {
+                    showError(`Ошибка обработки: ${apiResponse.message}`);
+                }
+
+            } catch (error) {
+                loadingIndicator.style.display = 'none';
+                showError(`Ошибка сети: ${error.message}`);
+            } finally {
+                // Активировать кнопки обработки снова
+                processBtn.disabled = false;
+                metadataOnlyBtn.disabled = false;
+            }
+        }
+
+        // Функция извлечения только метаданных
+        async function extractMetadataOnly() {
+            if (!currentFile) return;
+
+            // Показать индикатор загрузки
+            loadingIndicator.style.display = 'block';
+            processBtn.disabled = true;
+            metadataOnlyBtn.disabled = true;
+
+            try {
+                // Создать FormData для отправки файла
+                const formData = new FormData();
+                formData.append('file', currentFile);
+
+                // Отправить запрос к API
+                const response = await fetch(`${API_BASE_URL}/extract/metadata`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const apiResponse = await response.json();
+
+                // Скрыть индикатор загрузки
+                loadingIndicator.style.display = 'none';
+
+                if (apiResponse.success) {
+                    extractionResults = {
+                        metadata: apiResponse.data
+                    };
+                    displayResults(extractionResults, apiResponse.message, apiResponse.processingTimeMs);
+                    showSuccess(`Метаданные извлечены за ${apiResponse.processingTimeMs} мс`);
+                } else {
+                    showError(`Ошибка извлечения метаданных: ${apiResponse.message}`);
+                }
+
+            } catch (error) {
+                loadingIndicator.style.display = 'none';
+                showError(`Ошибка сети: ${error.message}`);
+            } finally {
+                // Активировать кнопки обработки снова
+                processBtn.disabled = false;
+                metadataOnlyBtn.disabled = false;
+            }
+        }
+
+        // Функция отображения ошибки
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+
+        // Функция отображения успешного сообщения
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+
+        // Функция форматирования размера файла
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Функция отображения результатов
+        function displayResults(results, message, processingTime) {
+            // Отображение метаданных
+            if (results.metadata) {
+                const metadataTable = document.getElementById('metadataTable');
+                metadataTable.innerHTML = '';
+
+                for (const [key, value] of Object.entries(results.metadata)) {
+                    const row = document.createElement('tr');
+
+                    const keyCell = document.createElement('td');
+                    keyCell.textContent = this.formatMetadataKey(key);
+                    row.appendChild(keyCell);
+
+                    const valueCell = document.createElement('td');
+
+                    if (typeof value === 'object' && value !== null) {
+                        let html = '';
+                        for (const [k, v] of Object.entries(value)) {
+                            html += `<div><strong>${this.formatMetadataKey(k)}:</strong> ${v}</div>`;
+                        }
+                        valueCell.innerHTML = html;
+                    } else if (key.toLowerCase().includes('date')) {
+                        valueCell.textContent = new Date(value).toLocaleString('ru-RU');
+                    } else {
+                        valueCell.textContent = value || 'Не указано';
+                    }
+
+                    row.appendChild(valueCell);
+                    metadataTable.appendChild(row);
+                }
+            }
+
+            // Отображение текста (если это строка)
+            if (typeof results === 'string') {
+                document.getElementById('textContent').textContent = results;
+
+                // Добавление обработчиков для кнопок текста
+                document.getElementById('copyTextBtn').onclick = () => {
+                    navigator.clipboard.writeText(results)
+                        .then(() => alert('Текст скопирован в буфер обмена'))
+                        .catch(err => console.error('Ошибка копирования: ', err));
+                };
+
+                document.getElementById('downloadTextBtn').onclick = () => {
+                    this.downloadFile(results, 'text/plain', 'extracted-text.txt');
+                };
+            }
+
+            // Показать раздел с результатами
+            resultsSection.style.display = 'block';
+
+            // Генерация данных для экспорта
+            this.generateExportData();
+        }
+
+        // Функция форматирования ключей метаданных
+        function formatMetadataKey(key) {
+            const keyMap = {
+                'title': 'Название',
+                'author': 'Автор',
+                'subject': 'Тема',
+                'keywords': 'Ключевые слова',
+                'creator': 'Создатель',
+                'producer': 'Производитель',
+                'creationDate': 'Дата создания',
+                'modificationDate': 'Дата изменения',
+                'customMetadata': 'Дополнительные метаданные'
+            };
+
+            return keyMap[key] || key;
+        }
+
+        // Функция генерации данных для экспорта
+        function generateExportData() {
+            if (!extractionResults) return;
+
+            const exportFormat = document.getElementById('exportFormat').value;
+            const exportContent = document.getElementById('exportContent');
+
+            let exportData = '';
+
+            switch (exportFormat) {
+                case 'json':
+                    exportData = JSON.stringify(extractionResults, null, 2);
+                    break;
+                case 'xml':
+                    exportData = this.generateXmlExport(extractionResults);
+                    break;
+                case 'html':
+                    exportData = this.generateHtmlExport(extractionResults);
+                    break;
+                case 'csv':
+                    exportData = this.generateCsvExport(extractionResults);
+                    break;
+            }
+
+            exportContent.textContent = exportData;
+
+            // Обработчик для кнопки скачивания экспорта
+            document.getElementById('downloadExportBtn').onclick = () => {
+                const mimeTypes = {
+                    'json': 'application/json',
+                    'xml': 'application/xml',
+                    'html': 'text/html',
+                    'csv': 'text/csv'
+                };
+
+                this.downloadFile(exportData, mimeTypes[exportFormat], `export.${exportFormat}`);
+            };
+        }
+
+        // Функция скачивания файла
+        function downloadFile(content, mimeType, filename) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Вспомогательные функции для генерации экспорта
+        function generateXmlExport(data) {
+            // Простая реализация для демонстрации
+            let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<document>\n';
+
+            if (data.metadata) {
+                xml += '  <metadata>\n';
+                for (const [key, value] of Object.entries(data.metadata)) {
+                    xml += `    <${key}>${value}</${key}>\n`;
+                }
+                xml += '  </metadata>\n';
+            }
+
+            if (typeof data === 'string') {
+                xml += `  <content><![CDATA[${data}]]></content>\n`;
+            }
+
+            xml += '</document>';
+            return xml;
+        }
+
+        function generateHtmlExport(data) {
+            // Простая реализация для демонстрации
+            let html = '<!DOCTYPE html>\n<html>\n<head>\n<meta charset="UTF-8">\n<title>Extracted PDF Content</title>\n</head>\n<body>\n';
+
+            if (data.metadata) {
+                html += '<h1>Метаданные документа</h1>\n<dl>\n';
+                for (const [key, value] of Object.entries(data.metadata)) {
+                    html += `<dt>${this.formatMetadataKey(key)}</dt>\n<dd>${value}</dd>\n`;
+                }
+                html += '</dl>\n';
+            }
+
+            if (typeof data === 'string') {
+                html += `<h1>Содержимое документа</h1>\n<pre>${data}</pre>\n`;
+            }
+
+            html += '</body>\n</html>';
+            return html;
+        }
+
+        function generateCsvExport(data) {
+            // Простая реализация для демонстрации
+            let csv = '';
+
+            if (data.metadata) {
+                csv += 'Параметр,Значение\n';
+                for (const [key, value] of Object.entries(data.metadata)) {
+                    csv += `"${this.formatMetadataKey(key)}","${value}"\n`;
+                }
+            }
+
+            return csv;
         }
     });
 </script>

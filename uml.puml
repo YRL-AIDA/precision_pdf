@@ -2,9 +2,22 @@
 class ru.sunveil.precision_pdf.pdfparser.model.PdfTextChunk {
 - List<TextLine> lines
 - String style
++ <<Create>> PdfTextChunk()
++ <<Create>> PdfTextChunk(int,BoundingBox,String,List<TextLine>,String)
 + String getType()
 + List<TextLine> getLines()
 + String getStyle()
+}
+
+
+class ru.sunveil.precision_pdf.controller.dto.ApiResponse {
+- boolean success
+- String message
+- T data
+- long processingTimeMs
++ <<Create>> ApiResponse(boolean,String,T,long)
++ {static} ApiResponse<T> success(T,String,long)
++ {static} ApiResponse<T> error(String,long)
 }
 
 
@@ -14,6 +27,17 @@ abstract class ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxPa
 # void validateFile(File)
 # void closeDocument(PDDocument)
 }
+
+class ru.sunveil.precision_pdf.controller.dto.ExtractionRequest {
+- Boolean extractText
+- Boolean extractImages
+- Boolean extractTables
+- Boolean extractMetadata
+- Boolean preserveLayout
+- String outputFormat
++ <<Create>> ExtractionRequest(Boolean,Boolean,Boolean,Boolean,Boolean,String)
+}
+
 
 class ru.sunveil.precision_pdf.pdfparser.extensions.ExtensionManager {
 - Map<String,PdfParserExtension> extensions
@@ -48,17 +72,25 @@ class ru.sunveil.precision_pdf.pdfparser.model.PdfMetadata {
 class ru.sunveil.precision_pdf.pdfparser.model.TextLine {
 - List<Word> words
 - float lineHeight
++ <<Create>> TextLine()
++ <<Create>> TextLine(int,BoundingBox,String,List<Word>,float)
 + String getType()
 }
 
 
 class ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException {
++ <<Create>> PdfParseException(String)
++ <<Create>> PdfParseException(String,Throwable)
 }
+
 class ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox {
 - float x
 - float y
 - float width
 - float height
++ <<Create>> BoundingBox()
++ <<Create>> BoundingBox(float,float,float,float)
++ <<Create>> BoundingBox(BoundingBox)
 + float getX()
 + void setX(float)
 + float getY()
@@ -95,6 +127,207 @@ class ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox {
 + {static} BoundingBox empty()
 }
 
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::BoundingBox()
+
+     * Конструктор по умолчанию
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::BoundingBox(float,float,float,float)
+
+     * Конструктор с параметрами
+     *
+     * @param x координата X левого нижнего угла
+     * @param y координата Y левого нижнего угла
+     * @param width ширина рамки
+     * @param height высота рамки
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::BoundingBox(BoundingBox)
+
+     * Конструктор копирования
+     *
+     * @param other другой объект BoundingBox для копирования
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::getX()
+ Getters and Setters
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::getRight()
+
+     * Возвращает координату X правого верхнего угла
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::getTop()
+
+     * Возвращает координату Y правого верхнего угла
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::getCenterX()
+
+     * Возвращает координату X центра рамки
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::getCenterY()
+
+     * Возвращает координату Y центра рамки
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::getArea()
+
+     * Возвращает площадь рамки
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::contains(BoundingBox)
+
+     * Проверяет, содержит ли текущая рамка другую рамку полностью
+     *
+     * @param other другая рамка для проверки
+     * @return true если текущая рамка содержит другую рамку полностью
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::contains(float,float)
+
+     * Проверяет, содержит ли текущая рамка точку с указанными координатами
+     *
+     * @param pointX координата X точки
+     * @param pointY координата Y точки
+     * @return true если точка находится внутри рамки
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::intersects(BoundingBox)
+
+     * Проверяет, пересекается ли текущая рамка с другой рамкой
+     *
+     * @param other другая рамка для проверки
+     * @return true если рамки пересекаются
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::intersectionArea(BoundingBox)
+
+     * Вычисляет площадь пересечения с другой рамкой
+     *
+     * @param other другая рамка
+     * @return площадь пересечения, или 0 если не пересекаются
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::intersectionOverUnion(BoundingBox)
+
+     * Вычисляет коэффициент IoU (Intersection over Union)
+     *
+     * @param other другая рамка
+     * @return значение IoU от 0 до 1
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::union(BoundingBox)
+
+     * Объединяет текущую рамку с другой рамкой
+     *
+     * @param other другая рамка
+     * @return новая рамка, содержащая обе исходные рамки
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::intersection(BoundingBox)
+
+     * Вычисляет пересечение с другой рамкой
+     *
+     * @param other другая рамка
+     * @return новая рамка, представляющая пересечение, или null если не пересекаются
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::scale(float,float)
+
+     * Масштабирует рамку на указанный коэффициент
+     *
+     * @param scaleX коэффициент масштабирования по X
+     * @param scaleY коэффициент масштабирования по Y
+     * @return новая масштабированная рамка
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::translate(float,float)
+
+     * Сдвигает рамку на указанные расстояния
+     *
+     * @param dx смещение по X
+     * @param dy смещение по Y
+     * @return новая сдвинутая рамка
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::isValid()
+
+     * Проверяет, является ли рамка валидной (положительные размеры)
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::distanceTo(BoundingBox)
+
+     * Вычисляет расстояние между центрами двух рамок
+     *
+     * @param other другая рамка
+     * @return расстояние между центрами
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::getAspectRatio()
+
+     * Вычисляет аспектное соотношение (width/height)
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::normalize(float,float)
+
+     * Нормализует координаты относительно размеров страницы
+     *
+     * @param pageWidth ширина страницы
+     * @param pageHeight высота страницы
+     * @return новая нормализованная рамка
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::denormalize(float,float)
+
+     * Денормализует координаты относительно размеров страницы
+     *
+     * @param pageWidth ширина страницы
+     * @param pageHeight высота страницы
+     * @return новая денормализованная рамка
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::copy()
+
+     * Создает копию текущего объекта
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::fromCorners(float,float,float,float)
+
+     * Статический метод для создания рамки из координат углов
+     *
+     * @param left левая координата
+     * @param bottom нижняя координата
+     * @param right правая координата
+     * @param top верхняя координата
+     * @return новый объект BoundingBox
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::fromCenter(float,float,float,float)
+
+     * Статический метод для создания рамки из центра и размеров
+     *
+     * @param centerX координата X центра
+     * @param centerY координата Y центра
+     * @param width ширина
+     * @param height высота
+     * @return новый объект BoundingBox
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox::empty()
+
+     * Статический метод для создания пустой невалидной рамки
+     
+end note
+
+class ru.sunveil.precision_pdf.controller.dto.UploadResponse {
+- String filename
+- long size
+- String contentType
++ <<Create>> UploadResponse(String,long,String)
+}
+
 
 interface ru.sunveil.precision_pdf.pdfparser.parser.TextExtractor {
 ~ List<PdfTextChunk> extractTextChunks(PDDocument)
@@ -109,12 +342,14 @@ class ru.sunveil.precision_pdf.pdfparser.export.TextExporter {
 
 class ru.sunveil.precision_pdf.controller.PrecisionPdfController {
 - PrecisionPdfExtractionService pdfExtractionService
++ <<Create>> PrecisionPdfController(PrecisionPdfExtractionService)
 + String index()
 + ExtractionConfig getConfig()
-+ ResponseEntity<String> extractPdf(MultipartFile,String,Boolean,Boolean,Boolean,Boolean)
-+ ResponseEntity<String> extractPdfAdvanced(MultipartFile,ExtractionConfig)
++ ResponseEntity<ApiResponse<String>> extractPdfSimple(MultipartFile,Boolean,Boolean,Boolean,Boolean,String)
++ ResponseEntity<ApiResponse<List<String>>> getSupportedFormats()
++ ResponseEntity<ApiResponse<PdfMetadata>> extractMetadata(MultipartFile)
++ ResponseEntity<ApiResponse<String>> handleException(Exception)
 - ExtractionConfig createCustomConfig(Boolean,Boolean,Boolean,Boolean)
-- ResponseEntity<String> createResponse(String,ExportFormat,String)
 }
 
 
@@ -134,6 +369,7 @@ class ru.sunveil.precision_pdf.pdfparser.model.PdfImage {
 
 class ru.sunveil.precision_pdf.pdfparser.export.JsonExporter {
 - ObjectMapper objectMapper
++ <<Create>> JsonExporter()
 + String export(PdfDocument,ExportFormat)
 + boolean supportsFormat(ExportFormat)
 }
@@ -143,6 +379,7 @@ enum ru.sunveil.precision_pdf.pdfparser.parser.ParserType {
 +  PRECISION
 +  DEFAULT
 - String value
+~ <<Create>> ParserType(String)
 + String getValue()
 + {static} ParserType fromString(String)
 }
@@ -158,6 +395,7 @@ class ru.sunveil.precision_pdf.pdfparser.model.PdfDocument {
 
 class ru.sunveil.precision_pdf.pdfparser.parser.PdfParseFactory {
 - ParserConfig parserConfig
++ <<Create>> PdfParseFactory(ParserConfig)
 + PdfParser createParser()
 + PdfParser createParser(ParserType)
 + PdfParser createParser(ParserType,ParserConfig)
@@ -174,6 +412,8 @@ abstract class ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity {
 # int pageNumber
 # BoundingBox boundingBox
 # String text
+# <<Create>> TextEntity()
+# <<Create>> TextEntity(int,BoundingBox,String)
 + String getText()
 + {abstract}String getType()
 }
@@ -208,6 +448,7 @@ class ru.sunveil.precision_pdf.pdfparser.export.PdfExporter {
 }
 class ru.sunveil.precision_pdf.pdfparser.export.ExporterFactory {
 - List<Exporter> exporters
++ <<Create>> ExporterFactory(List<Exporter>)
 + Exporter getExporter(ExportFormat)
 }
 
@@ -226,6 +467,7 @@ interface ru.sunveil.precision_pdf.pdfparser.model.core.PdfEntity {
 }
 
 class ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig {
+- String parser
 - boolean extractText
 - boolean extractImages
 - boolean extractTables
@@ -253,6 +495,8 @@ class ru.sunveil.precision_pdf.pdfparser.model.Word {
 - float confidence
 - String fontName
 - float fontSize
++ <<Create>> Word()
++ <<Create>> Word(int,BoundingBox,String,float,String,float)
 + String getType()
 }
 
@@ -270,6 +514,7 @@ class ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine {
 - Word currentWord
 - StringBuilder currentWordText
 - List<TextPosition> currentWordPositions
++ <<Create>> TextExtractionEngine()
 + List<PdfTextChunk> extractTextChunks(PDDocument)
 + List<TextLine> extractTextLines(PDDocument)
 + List<Word> extractWords(PDDocument)
@@ -294,7 +539,203 @@ class ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine {
 + int getTextLineCount()
 + int getWordCount()
 }
+note top of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine
 
+ * Engine for extracting text content from PDF documents using PDFBox library.
+ * Extends PDFTextStripper to process PDF text content with precision positioning.
+ 
+end note
+
+
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::TextExtractionEngine()
+
+     * Constructs a new TextExtractionEngine instance.
+     * Initializes data structures for storing extracted text elements.
+     *
+     * @throws IOException if an error occurs during engine initialization
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::extractTextChunks(PDDocument)
+
+     * Extracts all text content from the provided PDF document.
+     * Processes each page sequentially and collects text elements with precise positioning.
+     *
+     * @param document the PDF document to extract text from
+     * @return list of extracted PdfTextChunk objects representing text content
+     * @throws IOException if an error occurs during document processing
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::extractTextLines(PDDocument)
+
+     * Extracts text lines from the provided PDF document.
+     * Provides structured line-level text extraction with positioning information.
+     *
+     * @param document the PDF document to extract text lines from
+     * @return list of extracted TextLine objects
+     * @throws IOException if an error occurs during document processing
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::extractWords(PDDocument)
+
+     * Extracts individual words from the provided PDF document.
+     * Provides word-level text extraction with precise positioning and formatting information.
+     *
+     * @param document the PDF document to extract words from
+     * @return list of extracted Word objects
+     * @throws IOException if an error occurs during document processing
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::resetExtractionState()
+
+     * Resets the extraction state between document processing.
+     * Clears all temporary data structures and prepares for new extraction.
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::writeString(String,List<TextPosition>)
+
+     * Processes a string of text with associated text positions.
+     * Overrides the base method to handle text extraction with precise positioning.
+     *
+     * @param text the text string being processed
+     * @param textPositions the list of TextPosition objects representing individual characters
+     * @throws IOException if an error occurs during text processing
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::processTextPosition(TextPosition)
+
+     * Processes an individual text position for word and line extraction.
+     * Handles word boundaries and line transitions.
+     *
+     * @param textPosition the TextPosition object to process
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::createNewWord(TextPosition)
+
+     * Creates a new word starting at the given text position.
+     *
+     * @param textPosition the starting TextPosition for the new word
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::updateCurrentWord(TextPosition)
+
+     * Updates the current word with additional text position.
+     * Expands the word's bounding box to include the new character.
+     *
+     * @param textPosition the TextPosition to add to the current word
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::finalizeCurrentWord()
+
+     * Finalizes the current word and adds it to the line and word list.
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::writeLineSeparator()
+
+     * Handles line separator events.
+     * Finalizes the current line and prepares for a new line.
+     *
+     * @throws IOException if an error occurs during line processing
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::endPage(PDPage)
+
+     * Handles page end events.
+     * Finalizes any remaining text elements on the current page.
+     *
+     * @param page the current PDF page
+     * @throws IOException if an error occurs during page processing
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::finalizeCurrentLine()
+
+     * Finalizes the current line and adds it to the line list.
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::createTextChunk(String,List<TextPosition>)
+
+     * Creates a text chunk from the processed text and positions.
+     *
+     * @param text the complete text string
+     * @param textPositions the list of TextPosition objects
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::createBoundingBox(TextPosition)
+
+     * Creates a bounding box from a TextPosition object.
+     * Converts PDF coordinate system to standard top-left origin.
+     *
+     * @param textPosition the TextPosition to create bounding box from
+     * @return BoundingBox object with converted coordinates
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::calculateLineBoundingBox(List<Word>)
+
+     * Calculates the bounding box for a line from its constituent words.
+     *
+     * @param words the list of words in the line
+     * @return BoundingBox encompassing all words in the line
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::calculateLineHeight(List<Word>)
+
+     * Calculates the typical line height from constituent words.
+     *
+     * @param words the list of words in the line
+     * @return average line height
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::calculateChunkBoundingBox(List<TextPosition>)
+
+     * Calculates the bounding box for a text chunk from text positions.
+     *
+     * @param textPositions the list of TextPosition objects
+     * @return BoundingBox encompassing all text positions
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::extractTextStyle(TextPosition)
+
+     * Extracts text style information from a TextPosition.
+     *
+     * @param textPosition the TextPosition to analyze
+     * @return string representation of text style
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::calculateConfidence(TextPosition)
+
+     * Calculates confidence score for text recognition.
+     * Based on font properties and character recognition quality.
+     *
+     * @param textPosition the TextPosition to evaluate
+     * @return confidence score between 0 and 1
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::clear()
+
+     * Clears all extracted data and resets the engine state.
+     * Useful for reusing the engine instance for multiple documents.
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::getTextChunkCount()
+
+     * Returns the number of text chunks extracted in the last operation.
+     *
+     * @return count of extracted text chunks
+     
+end note
+note left of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::getTextLineCount()
+
+     * Returns the number of text lines extracted in the last operation.
+     *
+     * @return count of extracted text lines
+     
+end note
+note right of ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine::getWordCount()
+
+     * Returns the number of words extracted in the last operation.
+     *
+     * @return count of extracted words
+     
+end note
 
 interface ru.sunveil.precision_pdf.pdfparser.parser.ImageExtractor {
 ~ List<PdfImage> extractImages(PDDocument)
@@ -318,6 +759,12 @@ enum ru.sunveil.precision_pdf.pdfparser.export.ExportFormat {
 +  PDF
 }
 
+class ru.sunveil.precision_pdf.pdfparser.exceptions.GlobalExceptionHandler {
++ ResponseEntity<ApiResponse<String>> handlePdfParseException(PdfParseException)
++ ResponseEntity<ApiResponse<String>> handleIOException(IOException)
++ ResponseEntity<ApiResponse<String>> handleMultipartException(MultipartException)
+}
+
 class ru.sunveil.precision_pdf.pdfparser.model.TableCell {
 - int pageNumber
 - BoundingBox boundingBox
@@ -335,10 +782,33 @@ class ru.sunveil.precision_pdf.service.PrecisionPdfExtractionService {
 - ExtractionConfig extractionConfig
 - ExporterFactory exporterFactory
 - {static} Logger logger
-+ String processPdf(MultipartFile,ExportFormat,ExtractionConfig)
++ <<Create>> PrecisionPdfExtractionService(PdfParseFactory,ExtractionConfig,ExporterFactory)
++ String processPdf(MultipartFile,ExtractionConfig)
 + PdfDocument parsePdf(MultipartFile,ExtractionConfig)
-- PdfDocument parseWithConfig(PdfParser,File,ExtractionConfig)
++ PdfDocument parsePdf(File,ExtractionConfig)
 + ExtractionConfig getDefaultConfig()
++ ExtractionConfig getFullExtractionConfig()
++ ExtractionConfig getTextOnlyConfig()
++ ExtractionConfig getMetadataOnlyConfig()
++ boolean validatePdf(MultipartFile)
++ FileInfo getFileInfo(MultipartFile)
+- PdfDocument parseWithConfig(PdfParser,File,ExtractionConfig)
+- File convertMultipartFileToTempFile(MultipartFile)
+- void cleanupTempFile(File)
+}
+
+
+class ru.sunveil.precision_pdf.service.PrecisionPdfExtractionService$FileInfo {
+- String filename
+- long size
+- String contentType
+- long uploadTimestamp
++ <<Create>> FileInfo(String,long,String,long)
++ String getFilename()
++ long getSize()
++ String getContentType()
++ long getUploadTimestamp()
++ String toString()
 }
 
 
@@ -365,6 +835,9 @@ class ru.sunveil.precision_pdf.pdfparser.model.ExtractionResult {
 - PdfDocument document
 - String error
 - long processingTimeMs
++ <<Create>> ExtractionResult()
++ <<Create>> ExtractionResult(boolean,String,PdfDocument,long)
++ <<Create>> ExtractionResult(boolean,String,long)
 + {static} ExtractionResult success(PdfDocument,long)
 + {static} ExtractionResult error(String,long)
 }
@@ -388,4 +861,5 @@ ru.sunveil.precision_pdf.pdfparser.model.PdfEntity <|.. ru.sunveil.precision_pdf
 ru.sunveil.precision_pdf.pdfparser.model.TextEntity <|-- ru.sunveil.precision_pdf.pdfparser.model.Word
 org.apache.pdfbox.text.PDFTextStripper <|-- ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine
 ru.sunveil.precision_pdf.pdfparser.model.PdfEntity <|.. ru.sunveil.precision_pdf.pdfparser.model.TableCell
+ru.sunveil.precision_pdf.service.PrecisionPdfExtractionService +.. ru.sunveil.precision_pdf.service.PrecisionPdfExtractionService$FileInfo
 @enduml

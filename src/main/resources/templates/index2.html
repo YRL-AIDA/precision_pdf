@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${title}">PDF Text Extractor</title>
+    <link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📄 PDF Text Extractor</h1>
+        <p>Загрузите PDF файл для извлечения текста</p>
+    </div>
+
+    <div class="content">
+        <!-- Сообщения об ошибках/успехе -->
+        <div th:if="${error}" class="alert alert-error" th:text="${error}"></div>
+        <div th:if="${success}" class="alert alert-success">
+            Текст успешно извлечен из файла!
+        </div>
+
+        <!-- Секция загрузки -->
+        <div th:unless="${success}" class="upload-section" id="uploadSection">
+            <form id="uploadForm" th:action="@{/api/pdf/extract/text}" method="post" enctype="multipart/form-data">
+                <input type="file" id="pdfFile" name="pdfFile" class="file-input" accept=".pdf" required>
+                <button type="button" class="upload-btn" onclick="document.getElementById('pdfFile').click()">
+                    📁 Выберите PDF файл
+                </button>
+                <div class="file-info" id="fileInfo"></div>
+                <button type="submit" class="upload-btn" id="submitBtn" style="display: none;">
+                    🔍 Извлечь текст
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <p>Обработка PDF файла...</p>
+            </div>
+        </div>
+
+        <!-- Секция результатов -->
+        <div th:if="${success}" class="result-section show" id="resultSection">
+            <div class="result-header">
+                <h2>Результат извлечения</h2>
+                <div class="file-info">
+                    Файл: <strong th:text="${filename}"></strong> |
+                    Размер: <strong th:text="${#numbers.formatDecimal(fileSize/1024, 1, 2)} + ' KB'"></strong> |
+                    Время: <strong th:text="${processingTime} + ' ms'"></strong>
+                </div>
+            </div>
+
+            <div class="result-stats">
+                Извлечено символов: <strong th:text="${#strings.length(text)}"></strong>
+            </div>
+
+            <div class="result-text" id="extractedText" th:text="${text}"></div>
+
+            <button class="copy-btn" onclick="copyToClipboard()">📋 Копировать текст</button>
+            <button class="new-extraction" onclick="newExtraction()">🔄 Новое извлечение</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Обработка выбора файла
+    document.getElementById('pdfFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        const fileInfo = document.getElementById('fileInfo');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (file) {
+            fileInfo.innerHTML = `
+                    Выбран файл: <strong>${file.name}</strong><br>
+                    Размер: <strong>${(file.size/1024).toFixed(2)} KB</strong>
+                `;
+            submitBtn.style.display = 'inline-block';
+        } else {
+            fileInfo.innerHTML = '';
+            submitBtn.style.display = 'none';
+        }
+    });
+
+    // Drag and drop функциональность
+    const uploadSection = document.getElementById('uploadSection');
+
+    uploadSection.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+    });
+
+    uploadSection.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+    });
+
+    uploadSection.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('pdfFile');
+            fileInput.files = files;
+
+            // Триггерим событие change
+            const event = new Event('change', { bubbles: true });
+            fileInput.dispatchEvent(event);
+        }
+    });
+
+    // Обработка отправки формы
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('submitBtn').style.display = 'none';
+    });
+
+    // Копирование текста в буфер обмена
+    function copyToClipboard() {
+        const text = document.getElementById('extractedText').textContent;
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Текст скопирован в буфер обмена!');
+        }, function(err) {
+            console.error('Ошибка копирования: ', err);
+        });
+    }
+
+    // Новое извлечение
+    function newExtraction() {
+        window.location.href = '/';
+    }
+
+    // Автофокус на поле файла при загрузке страницы
+    window.addEventListener('load', function() {
+        const fileInput = document.getElementById('pdfFile');
+        if (fileInput && !fileInput.files.length) {
+            fileInput.value = '';
+        }
+    });
+</script>
+</body>
+</html>
