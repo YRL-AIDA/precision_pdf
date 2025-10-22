@@ -3,10 +3,13 @@ package ru.sunveil.precision_pdf.pdfparser.parser;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig;
 import ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException;
 import ru.sunveil.precision_pdf.pdfparser.model.*;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
+import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine;
 
 import java.io.File;
@@ -18,6 +21,16 @@ public class SimpleParser extends AbstractPdfBoxParser {
 
     protected PDDocument currentDocument;
     protected ExtractionConfig extractionConfig;
+    private final ImageExtractionEngine imageExtractionEngine;
+    private static final Logger logger = LoggerFactory.getLogger(SimpleParser.class);
+
+    public SimpleParser() {
+        this.imageExtractionEngine = new ImageExtractionEngine();
+    }
+
+    public SimpleParser(float imageDpi, int maxImageSize) {
+        this.imageExtractionEngine = new ImageExtractionEngine(imageDpi, maxImageSize, true);
+    }
 
     @Override
     public PdfDocument parse(File pdfFile, ExtractionConfig config) {
@@ -48,10 +61,6 @@ public class SimpleParser extends AbstractPdfBoxParser {
 
         pdfDocument.setPages(extractPages(document));
 
-        if (extractionConfig.isExtractImages()) {
-            pdfDocument.setImages(extractImages(document));
-        }
-
         return pdfDocument;
     }
 
@@ -68,6 +77,8 @@ public class SimpleParser extends AbstractPdfBoxParser {
                 System.err.println("Failed to extract page " + (i + 1) + ": " + e.getMessage());
             }
         }
+
+
 
         return pages;
     }
@@ -101,13 +112,25 @@ public class SimpleParser extends AbstractPdfBoxParser {
 
         if (extractionConfig.isExtractImages()) {
             try {
-                pdfPage.setImages(extractImagesFromPage(page, pageNumber));
-            } catch (Exception e) {
-                System.err.println("Failed to extract images from page " + pageNumber + ": " + e.getMessage());
+                List<PdfImage> pageImages = imageExtractionEngine.extractImagesFromPage(
+                        getCurrentDocument(), pageNumber);
+                pdfPage.setImages(pageImages);
+            } catch (IOException e) {
+                logger.warn("Failed to extract images from page {}", pageNumber, e);
             }
         }
 
         return pdfPage;
+    }
+
+    @Override
+    public List<PdfImage> extractImages(PDDocument document) {
+        try {
+            return imageExtractionEngine.extractImages(document);
+        } catch (IOException e) {
+            logger.error("Failed to extract images from PDF", e);
+            throw new PdfParseException("Image extraction failed: " + e.getMessage(), e);
+        }
     }
 
     protected List<PdfImage> extractImagesFromPage(PDPage page, int pageNumber) {
@@ -162,13 +185,14 @@ public class SimpleParser extends AbstractPdfBoxParser {
         }
     }
 
-    public List<PdfImage> extractImages(PDDocument document) {
-        if (document == null) {
-            throw new IllegalArgumentException("Document cannot be null");
-        }
+    @Override
+    public List<PdfImage> extractImagesFromPage(PDDocument document, int pageNumber) throws IOException {
+        return List.of();
+    }
 
-        System.out.println("Image extraction not implemented in base class");
-        return new ArrayList<>();
+    @Override
+    public boolean supportsImageExtraction() {
+        return false;
     }
 
     public List<Table> extractTables(PDDocument document) {

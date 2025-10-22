@@ -8,4 +8,6 @@ import java.util.List;
 
 public interface ImageExtractor {
     List<PdfImage> extractImages(PDDocument document) throws IOException;
+    List<PdfImage> extractImagesFromPage(PDDocument document, int pageNumber) throws IOException;
+    boolean supportsImageExtraction();
 }

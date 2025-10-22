@@ -28,8 +28,6 @@ public abstract class AbstractPdfBoxParser implements PdfParser, TextExtractor, 
                 metadata.setKeywords(docInfo.getKeywords());
                 metadata.setCreator(docInfo.getCreator());
                 metadata.setProducer(docInfo.getProducer());
-                //metadata.setCreationDate(docInfo.getCreationDate().getTime());
-                //metadata.setModificationDate(docInfo.getModificationDate().getTime());
             }
         } catch (Exception e) {
             throw new PdfParseException("Failed to extract metadata", e);
