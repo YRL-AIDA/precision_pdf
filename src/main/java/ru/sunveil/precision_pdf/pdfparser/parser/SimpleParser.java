@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig;
 import ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException;
 import ru.sunveil.precision_pdf.pdfparser.model.*;
+import ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine;
@@ -74,11 +75,9 @@ public class SimpleParser extends AbstractPdfBoxParser {
                 PdfPage page = extractPage(pdPage, i + 1);
                 pages.add(page);
             } catch (Exception e) {
-                System.err.println("Failed to extract page " + (i + 1) + ": " + e.getMessage());
+                logger.error("Failed to extract page {}: {}", (i + 1), e.getMessage());
             }
         }
-
-
 
         return pages;
     }
@@ -94,11 +93,14 @@ public class SimpleParser extends AbstractPdfBoxParser {
 
         if (extractionConfig.isExtractText()) {
             try {
-                pdfPage.setWords(extractWords(currentDocument));
-                pdfPage.setTextLines(extractTextLines(currentDocument));
-                pdfPage.setPdfTextChunks(extractTextChunks(currentDocument));
+                TextExtractionResult textResult = extractAllTextEntities(currentDocument, pageNumber);
+
+                pdfPage.setWords(textResult.getWords());
+                pdfPage.setTextLines(textResult.getTextLines());
+                pdfPage.setPdfTextChunks(textResult.getTextChunks());
+
             } catch (Exception e) {
-                System.err.println("Failed to extract text from page " + pageNumber + ": " + e.getMessage());
+                logger.error("Failed to extract text from page {}: {}", pageNumber, e.getMessage());
             }
         }
 
@@ -106,7 +108,7 @@ public class SimpleParser extends AbstractPdfBoxParser {
             try {
                 pdfPage.setTables(extractTables(currentDocument));
             } catch (Exception e) {
-                System.err.println("Failed to extract tables from page " + pageNumber + ": " + e.getMessage());
+                logger.error("Failed to extract tables from page {}: {}", pageNumber, e.getMessage());
             }
         }
 
@@ -123,6 +125,81 @@ public class SimpleParser extends AbstractPdfBoxParser {
         return pdfPage;
     }
 
+    /**
+     * Новый метод - извлекает все текстовые сущности за один проход
+     */
+    private TextExtractionResult extractAllTextEntities(PDDocument document, int pageNumber) throws IOException {
+        TextExtractionEngine extractionEngine = new TextExtractionEngine();
+
+        extractionEngine.setStartPage(pageNumber);
+        extractionEngine.setEndPage(pageNumber);
+
+        List<PdfTextChunk> chunks = extractionEngine.extractTextChunks(document);
+        List<TextLine> lines = extractionEngine.extractTextLines(document);
+        List<Word> words = extractionEngine.extractWords(document);
+
+
+        return new TextExtractionResult(chunks, lines, words);
+    }
+
+    /**
+     * Вспомогательный класс для возврата всех текстовых сущностей
+     */
+    private static class TextExtractionResult {
+        private final List<PdfTextChunk> textChunks;
+        private final List<TextLine> textLines;
+        private final List<Word> words;
+
+        public TextExtractionResult(List<PdfTextChunk> textChunks, List<TextLine> textLines, List<Word> words) {
+            this.textChunks = textChunks;
+            this.textLines = textLines;
+            this.words = words;
+        }
+
+        public List<PdfTextChunk> getTextChunks() { return textChunks; }
+        public List<TextLine> getTextLines() { return textLines; }
+        public List<Word> getWords() { return words; }
+    }
+
+    @Override
+    public List<PdfTextChunk> extractTextChunks(PDDocument document) {
+        if (document == null) {
+            throw new IllegalArgumentException("Document cannot be null");
+        }
+        try {
+            TextExtractionEngine extractionEngine = new TextExtractionEngine();
+            return extractionEngine.extractTextChunks(document);
+        } catch (IOException e) {
+            throw new PdfParseException("Failed to extract text chunks", e);
+        }
+    }
+
+    @Override
+    public List<TextLine> extractTextLines(PDDocument document) {
+        if (document == null) {
+            throw new IllegalArgumentException("Document cannot be null");
+        }
+        try {
+            TextExtractionEngine extractionEngine = new TextExtractionEngine();
+            return extractionEngine.extractTextLines(document);
+        } catch (IOException e) {
+            throw new PdfParseException("Failed to extract text lines", e);
+        }
+    }
+
+    @Override
+    public List<Word> extractWords(PDDocument document) {
+        if (document == null) {
+            throw new IllegalArgumentException("Document cannot be null");
+        }
+        try {
+            TextExtractionEngine extractionEngine = new TextExtractionEngine();
+            return extractionEngine.extractWords(document);
+        } catch (IOException e) {
+            throw new PdfParseException("Failed to extract words", e);
+        }
+    }
+
     @Override
     public List<PdfImage> extractImages(PDDocument document) {
         try {
@@ -133,74 +210,22 @@ public class SimpleParser extends AbstractPdfBoxParser {
         }
     }
 
-    protected List<PdfImage> extractImagesFromPage(PDPage page, int pageNumber) {
-        List<PdfImage> pageImages = new ArrayList<>();
-        if (currentDocument != null) {
-            List<PdfImage> allImages = extractImages(currentDocument);
-            for (PdfImage image : allImages) {
-                if (image.getPageNumber() == pageNumber) {
-                    pageImages.add(image);
-                }
-            }
-        }
-        return pageImages;
-    }
-
-    public List<PdfTextChunk> extractTextChunks(PDDocument document) {
-        if (document == null) {
-            throw new IllegalArgumentException("Document cannot be null");
-        }
-
-        try {
-            TextExtractionEngine extractionEngine = new TextExtractionEngine();
-            return extractionEngine.extractTextChunks(document);
-        } catch (IOException e) {
-            throw new PdfParseException("Failed to extract text chunks", e);
-        }
-    }
-
-    public List<TextLine> extractTextLines(PDDocument document) {
-        if (document == null) {
-            throw new IllegalArgumentException("Document cannot be null");
-        }
-
-        try {
-            TextExtractionEngine extractionEngine = new TextExtractionEngine();
-            return extractionEngine.extractTextLines(document);
-        } catch (IOException e) {
-            throw new PdfParseException("Failed to extract text lines", e);
-        }
-    }
-
-    public List<Word> extractWords(PDDocument document) {
-        if (document == null) {
-            throw new IllegalArgumentException("Document cannot be null");
-        }
-
-        try {
-            TextExtractionEngine extractionEngine = new TextExtractionEngine();
-            return extractionEngine.extractWords(document);
-        } catch (IOException e) {
-            throw new PdfParseException("Failed to extract words", e);
-        }
-    }
-
     @Override
     public List<PdfImage> extractImagesFromPage(PDDocument document, int pageNumber) throws IOException {
-        return List.of();
+        return imageExtractionEngine.extractImagesFromPage(document, pageNumber);
     }
 
     @Override
     public boolean supportsImageExtraction() {
-        return false;
+        return true;
     }
 
+    @Override
     public List<Table> extractTables(PDDocument document) {
         if (document == null) {
             throw new IllegalArgumentException("Document cannot be null");
         }
-
-        System.out.println("Table extraction not implemented in base class");
+        logger.info("Table extraction not implemented in base class");
         return new ArrayList<>();
     }
 
@@ -227,5 +252,4 @@ public class SimpleParser extends AbstractPdfBoxParser {
     protected ExtractionConfig getExtractionConfig() {
         return extractionConfig;
     }
-
 }
