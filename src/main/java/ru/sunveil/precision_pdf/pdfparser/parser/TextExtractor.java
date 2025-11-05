@@ -2,6 +2,7 @@ package ru.sunveil.precision_pdf.pdfparser.parser;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfTextChunk;
+import ru.sunveil.precision_pdf.pdfparser.model.TextExtractionResult;
 import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
 import ru.sunveil.precision_pdf.pdfparser.model.Word;
 
@@ -13,4 +14,5 @@ public interface TextExtractor {
     List<PdfTextChunk> extractTextChunks(PDDocument document) throws IOException;
     List<TextLine> extractTextLines(PDDocument document) throws IOException;
     List<Word> extractWords(PDDocument document) throws IOException;
+    TextExtractionResult extractTextAllTextEntities(PDDocument document) throws IOException;
 }

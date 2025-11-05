@@ -134,31 +134,7 @@ public class SimpleParser extends AbstractPdfBoxParser {
         extractionEngine.setStartPage(pageNumber);
         extractionEngine.setEndPage(pageNumber);
 
-        List<PdfTextChunk> chunks = extractionEngine.extractTextChunks(document);
-        List<TextLine> lines = extractionEngine.extractTextLines(document);
-        List<Word> words = extractionEngine.extractWords(document);
-
-
-        return new TextExtractionResult(chunks, lines, words);
-    }
-
-    /**
-     * Вспомогательный класс для возврата всех текстовых сущностей
-     */
-    private static class TextExtractionResult {
-        private final List<PdfTextChunk> textChunks;
-        private final List<TextLine> textLines;
-        private final List<Word> words;
-
-        public TextExtractionResult(List<PdfTextChunk> textChunks, List<TextLine> textLines, List<Word> words) {
-            this.textChunks = textChunks;
-            this.textLines = textLines;
-            this.words = words;
-        }
-
-        public List<PdfTextChunk> getTextChunks() { return textChunks; }
-        public List<TextLine> getTextLines() { return textLines; }
-        public List<Word> getWords() { return words; }
+        return extractionEngine.extractText(document);
     }
 
     @Override
@@ -198,6 +174,11 @@ public class SimpleParser extends AbstractPdfBoxParser {
         } catch (IOException e) {
             throw new PdfParseException("Failed to extract words", e);
         }
+    }
+
+    @Override
+    public ru.sunveil.precision_pdf.pdfparser.model.TextExtractionResult extractTextAllTextEntities(PDDocument document) throws IOException {
+        return null;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package ru.sunveil.precision_pdf.pdfparser.parser.pdfbox;
 
+import io.micrometer.common.util.StringUtils;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -7,12 +8,13 @@ import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
-import org.apache.commons.lang3.StringUtils;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfTextChunk;
+import ru.sunveil.precision_pdf.pdfparser.model.TextExtractionResult;
 import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
 import ru.sunveil.precision_pdf.pdfparser.model.Word;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import org.apache.pdfbox.pdmodel.graphics.state.RenderingMode;
+import ru.sunveil.precision_pdf.pdfparser.parser.SimpleParser;
 
 
 import java.io.IOException;
@@ -492,6 +494,11 @@ public class TextExtractionEngine extends PDFTextStripper {
         currentWordText.setLength(0);
         currentWordPositions.clear();
         newLineStarted = false;
+    }
+
+    public TextExtractionResult extractText(PDDocument document) throws IOException {
+        extractAllInOnePass(document);
+        return new TextExtractionResult(this.cachedChunks, this.cachedLines, this.cachedWords);
     }
 
     public List<PdfTextChunk> extractTextChunks(PDDocument document) throws IOException {
