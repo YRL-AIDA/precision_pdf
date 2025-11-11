@@ -14,15 +14,13 @@ import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
 import ru.sunveil.precision_pdf.pdfparser.model.Word;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import org.apache.pdfbox.pdmodel.graphics.state.RenderingMode;
-import ru.sunveil.precision_pdf.pdfparser.parser.SimpleParser;
-
 
 import java.io.IOException;
 import java.util.*;
 
 /**
- * Upgraded TextExtractionEngine based on PDContentExtractor logic
- * Extracts chunks, lines and words in single pass without intermediate TextChunk
+ * Engine for extracting text content from PDF documents using PDFBox library.
+ * Extends PDFTextStripper to process PDF text content with precision positioning.
  */
 public class TextExtractionEngine extends PDFTextStripper {
 
@@ -54,6 +52,12 @@ public class TextExtractionEngine extends PDFTextStripper {
             '\u180E', '\u200B', '\u200C', '\u200D', '\u2060', '\uFEFF'
     };
 
+    /**
+     * Constructs a new TextExtractionEngine instance.
+     * Initializes internal data structures for storing extracted text entities.
+     *
+     * @throws IOException if an error occurs during initialization
+     */
     public TextExtractionEngine() throws IOException {
         super();
         initialize();
@@ -75,7 +79,11 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Extract all text entities in single pass and cache results
+     * Extracts all text entities from a PDF document in a single pass.
+     * Populates cached chunks, lines, and words lists with full text data.
+     *
+     * @param document the PDF document to extract text from
+     * @throws IOException if an error occurs during document processing
      */
     private void extractAllInOnePass(PDDocument document) throws IOException {
         if (extractionCompleted) {
@@ -111,11 +119,16 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Process text string with positions - main extraction logic
+     * Processes a string of text with associated text positions.
+     * Overrides the base method to handle text extraction with precise positioning.
+     *
+     * @param text the text string being processed
+     * @param textPositions the list of TextPosition objects representing individual characters
+     * @throws IOException if an error occurs during text processing
      */
     @Override
-    protected void writeString(String string, List<TextPosition> textPositions) throws IOException {
-        if (StringUtils.isBlank(string) || textPositions.isEmpty()) {
+    protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
+        if (StringUtils.isBlank(text) || textPositions.isEmpty()) {
             return;
         }
 
@@ -124,13 +137,14 @@ public class TextExtractionEngine extends PDFTextStripper {
         if (!newLineStarted) {
             newLineStarted = true;
             TextPosition firstTp = textPositions.get(0);
+            // store start X and converted Y (we will normalize when building bbox)
             lineStartX = firstTp.getXDirAdj();
             lineStartY = convertToTopLeftY(firstTp.getYDirAdj() - firstTp.getHeightDir());
         }
 
-        lineText.append(string);
+        lineText.append(text);
 
-        PdfTextChunk chunk = createPdfTextChunk(string, textPositions);
+        PdfTextChunk chunk = createPdfTextChunk(text, textPositions);
         cachedChunks.add(chunk);
 
         extractWordsFromTextPositions(textPositions);
@@ -141,7 +155,10 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Extract words from text positions using PDContentExtractor logic
+     * Extracts words from a list of text positions.
+     * Splits text into words and updates bounding boxes and styles.
+     *
+     * @param textPositions list of TextPosition objects
      */
     private void extractWordsFromTextPositions(List<TextPosition> textPositions) {
         if (textPositions.isEmpty()) return;
@@ -159,24 +176,27 @@ public class TextExtractionEngine extends PDFTextStripper {
             if (currentWordText.length() == 0) {
                 currentWordText.append(charText);
                 currentWordPositions.add(tp);
-                updateWordBoundingBox(tp);
+                updateWordBoundingBoxInitial(tp);
             } else {
                 if (isNearCurrentWord(tp)) {
                     currentWordText.append(charText);
                     currentWordPositions.add(tp);
-                    updateWordBoundingBox(tp);
+                    updateWordBoundingBoxExtend(tp);
                 } else {
                     finalizeCurrentWord();
                     currentWordText.append(charText);
                     currentWordPositions.add(tp);
-                    updateWordBoundingBox(tp);
+                    updateWordBoundingBoxInitial(tp);
                 }
             }
         }
     }
 
     /**
-     * Check if text position can be part of a word
+     * Checks if a text position represents a valid word character.
+     *
+     * @param tp the TextPosition to check
+     * @return true if the character can be part of a word, false otherwise
      */
     private boolean isWordChar(TextPosition tp) {
         String text = getUnicodeText(tp);
@@ -192,7 +212,10 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Check if text position is near current word
+     * Determines if a TextPosition is near the current word to be considered part of it.
+     *
+     * @param tp the TextPosition to check
+     * @return true if the character is near the current word
      */
     private boolean isNearCurrentWord(TextPosition tp) {
         float charLeft = tp.getXDirAdj();
@@ -201,29 +224,51 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Update word bounding box with new text position
+     * Updates bounding box when adding the first character to a word.
+     *
+     * @param tp the TextPosition representing the first character
      */
-    private void updateWordBoundingBox(TextPosition tp) {
+    private void updateWordBoundingBoxInitial(TextPosition tp) {
         float left = tp.getXDirAdj();
-        float top = convertToTopLeftY(tp.getYDirAdj() - tp.getHeightDir());
-        float right = tp.getXDirAdj() + tp.getWidthDirAdj();
-        float bottom = convertToTopLeftY(tp.getYDirAdj());
+        float tpTopPdf = tp.getYDirAdj() - tp.getHeightDir();
+        float tpBottomPdf = tp.getYDirAdj();
 
-        if (currentWordText.length() == 1) {
-            wordStartX = left;
-            wordStartY = top;
-            wordEndX = right;
-            wordEndY = bottom;
-        } else {
-            wordStartX = Math.min(wordStartX, left);
-            wordStartY = Math.min(wordStartY, top);
-            wordEndX = Math.max(wordEndX, right);
-            wordEndY = Math.max(wordEndY, bottom);
-        }
+        float top = convertToTopLeftY(tpTopPdf);
+        float bottom = convertToTopLeftY(tpBottomPdf);
+
+        wordStartX = left;
+        wordEndX = tp.getXDirAdj() + tp.getWidthDirAdj();
+
+        wordStartY = Math.min(top, bottom);
+        wordEndY = Math.max(top, bottom);
     }
 
     /**
-     * Finalize current word and add to lists
+     * Extends the current word bounding box with an additional character.
+     *
+     * @param tp the TextPosition representing the new character
+     */
+    private void updateWordBoundingBoxExtend(TextPosition tp) {
+        float left = tp.getXDirAdj();
+        float tpTopPdf = tp.getYDirAdj() - tp.getHeightDir();
+        float tpBottomPdf = tp.getYDirAdj();
+
+        float top = convertToTopLeftY(tpTopPdf);
+        float bottom = convertToTopLeftY(tpBottomPdf);
+
+        float right = tp.getXDirAdj() + tp.getWidthDirAdj();
+
+        wordEndX = Math.max(wordEndX, right);
+        wordStartX = Math.min(wordStartX, left);
+
+        float minY = Math.min(wordStartY, Math.min(top, bottom));
+        float maxY = Math.max(wordEndY, Math.max(top, bottom));
+        wordStartY = minY;
+        wordEndY = maxY;
+    }
+
+    /**
+     * Finalizes the current word, adds it to the word list and the current line.
      */
     private void finalizeCurrentWord() {
         if (currentWordText.length() > 0 && !currentWordPositions.isEmpty()) {
@@ -233,6 +278,8 @@ public class TextExtractionEngine extends PDFTextStripper {
 
             currentWordText.setLength(0);
             currentWordPositions.clear();
+
+            wordStartX = wordStartY = wordEndX = wordEndY = 0f;
         }
     }
 
@@ -241,11 +288,9 @@ public class TextExtractionEngine extends PDFTextStripper {
      */
     private void finalizeCurrentLine() {
         if (newLineStarted && !currentLineWords.isEmpty()) {
-            // Create TextLine object
             TextLine line = createTextLine();
             cachedLines.add(line);
 
-            // Reset line state
             newLineStarted = false;
             lineText.setLength(0);
             currentLineWords.clear();
@@ -253,7 +298,11 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Create PdfTextChunk from text and positions
+     * Creates a PdfTextChunk from text and text positions.
+     *
+     * @param text the text string
+     * @param positions list of TextPosition objects
+     * @return new PdfTextChunk with bounding box and style information
      */
     private PdfTextChunk createPdfTextChunk(String text, List<TextPosition> positions) {
         BoundingBox bbox = calculateBoundingBox(positions);
@@ -268,15 +317,31 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Create Word from text and positions
+     * Creates a Word object from text and text positions.
+     *
+     * @param text the word text
+     * @param positions list of TextPosition objects for the word
+     * @return Word object with bounding box and style
      */
     private Word createWord(String text, List<TextPosition> positions) {
-        BoundingBox bbox = new BoundingBox(wordStartX, wordStartY, wordEndX - wordStartX, wordEndY - wordStartY);
-        TextPosition styleTp = positions.get(positions.size() / 2);
+        float left = wordStartX;
+        float width = wordEndX - wordStartX;
+        float topY = Math.min(wordStartY, wordEndY);
+        float height = Math.abs(wordEndY - wordStartY);
+
+        if (width <= 0 || height <= 0) {
+            BoundingBox bbox = calculateBoundingBox(positions);
+            left = bbox.getX();
+            width = bbox.getWidth();
+            topY = bbox.getY();
+            height = bbox.getHeight();
+        }
+
+        TextPosition styleTp = positions.get(Math.max(0, positions.size() / 2));
 
         Word word = new Word();
         word.setPageNumber(currentPageNumber);
-        word.setBoundingBox(bbox);
+        word.setBoundingBox(new BoundingBox(left, topY, width, height));
         word.setText(text);
         word.setFontName(styleTp.getFont().getName());
         word.setFontSize(styleTp.getFontSizeInPt());
@@ -286,10 +351,39 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Create TextLine from current line state
+     * Creates a TextLine from the current line state, including words and bounding box.
+     *
+     * @return TextLine representing the current line
      */
     private TextLine createTextLine() {
-        BoundingBox bbox = new BoundingBox(lineStartX, lineStartY, lineEndX - lineStartX, lineEndY - lineStartY);
+        // normalize Y coordinates: lineStartY may be > or < lineEndY depending on conversion; compute minY/height
+        float minY = Math.min(lineStartY, lineEndY);
+        float height = Math.abs(lineEndY - lineStartY);
+        float left = lineStartX;
+        float width = lineEndX - lineStartX;
+
+        // If width or height are zero, try to compute from words
+        if (width <= 0 || height <= 0) {
+            float minLeft = Float.MAX_VALUE, maxRight = Float.MIN_VALUE;
+            float minTop = Float.MAX_VALUE, maxBottom = Float.MIN_VALUE;
+            for (Word w : currentLineWords) {
+                BoundingBox b = w.getBoundingBox();
+                minLeft = Math.min(minLeft, b.getX());
+                maxRight = Math.max(maxRight, b.getX() + b.getWidth());
+                minTop = Math.min(minTop, b.getY());
+                maxBottom = Math.max(maxBottom, b.getY() + b.getHeight());
+            }
+            if (minLeft != Float.MAX_VALUE) {
+                left = Math.min(left, minLeft);
+                width = (maxRight - left);
+            }
+            if (minTop != Float.MAX_VALUE) {
+                minY = Math.min(minY, minTop);
+                height = Math.max(height, maxBottom - minY);
+            }
+        }
+
+        BoundingBox bbox = new BoundingBox(left, minY, width, height);
         float lineHeight = calculateLineHeight(currentLineWords);
 
         TextLine line = new TextLine();
@@ -303,11 +397,14 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Calculate bounding box from text positions
+     * Calculates a bounding box covering all given text positions.
+     *
+     * @param positions list of TextPosition objects
+     * @return BoundingBox enclosing all positions
      */
     private BoundingBox calculateBoundingBox(List<TextPosition> positions) {
         float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE;
-        float maxX = Float.MIN_VALUE, maxY = Float.MIN_VALUE;
+        float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
 
         for (TextPosition tp : positions) {
             float left = tp.getXDirAdj();
@@ -315,24 +412,42 @@ public class TextExtractionEngine extends PDFTextStripper {
             float right = tp.getXDirAdj() + tp.getWidthDirAdj();
             float bottom = convertToTopLeftY(tp.getYDirAdj());
 
+            // normalize top/bottom for this tp
+            float tpMinY = Math.min(top, bottom);
+            float tpMaxY = Math.max(top, bottom);
+
             minX = Math.min(minX, left);
-            minY = Math.min(minY, top);
+            minY = Math.min(minY, tpMinY);
             maxX = Math.max(maxX, right);
-            maxY = Math.max(maxY, bottom);
+            maxY = Math.max(maxY, tpMaxY);
+        }
+
+        // Fallback if nothing found
+        if (minX == Float.MAX_VALUE) {
+            minX = 0;
+            minY = 0;
+            maxX = 0;
+            maxY = 0;
         }
 
         return new BoundingBox(minX, minY, maxX - minX, maxY - minY);
     }
 
     /**
-     * Convert PDF Y coordinate (bottom-left origin) to top-left origin
+     * Converts PDF bottom-left Y coordinate to top-left coordinate.
+     *
+     * @param pdfY Y coordinate in PDF space
+     * @return Y coordinate in top-left origin
      */
     private float convertToTopLeftY(float pdfY) {
         return pageHeight - pdfY;
     }
 
     /**
-     * Extract text style from text position
+     * Extracts style information from a TextPosition (font, size, bold/italic).
+     *
+     * @param textPosition the TextPosition to analyze
+     * @return CSS-style string representing text style
      */
     private String extractTextStyle(TextPosition textPosition) {
         StringBuilder style = new StringBuilder();
@@ -352,6 +467,9 @@ public class TextExtractionEngine extends PDFTextStripper {
         return style.toString();
     }
 
+    /**
+     * Determine if font is bold
+     */
     private boolean isBoldFont(TextPosition textPosition) {
         if (textPosition.getFont() == null) return false;
 
@@ -381,7 +499,7 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Determine if font is italic (logic from PDContentExtractor.getFont())
+     * Determine if font is italic
      */
     private boolean isItalicFont(TextPosition textPosition) {
         if (textPosition.getFont() == null) return false;
@@ -411,8 +529,13 @@ public class TextExtractionEngine extends PDFTextStripper {
 
         return isItalicFontName || isObliqueFontName;
     }
+
     /**
-     * Calculate confidence score for text recognition
+     * Calculates confidence score for text recognition.
+     * Based on font properties and character recognition quality.
+     *
+     * @param textPosition the TextPosition to evaluate
+     * @return confidence score between 0 and 1
      */
     private float calculateConfidence(TextPosition textPosition) {
         float confidence = 1.0f;
@@ -430,7 +553,10 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Calculate average line height from words
+     * Calculates the typical line height from constituent words.
+     *
+     * @param words the list of words in the line
+     * @return average line height
      */
     private float calculateLineHeight(List<Word> words) {
         if (words.isEmpty()) {
@@ -446,7 +572,12 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Check if text contains whitespace
+     * Checks whether the given text contains any whitespace characters.
+     * The method compares each character in the text against a predefined list
+     * of Unicode whitespace symbols (including spaces, tabs, and non-breaking spaces).
+     *
+     * @param text the text string to check
+     * @return true if the text contains at least one whitespace character, false otherwise
      */
     private boolean containsWhitespace(String text) {
         for (char c : text.toCharArray()) {
@@ -458,7 +589,10 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
     /**
-     * Get Unicode text with special character handling (from PDContentExtractor)
+     * Returns the Unicode text for a given TextPosition, handling special characters.
+     *
+     * @param tp the TextPosition to extract text from
+     * @return the Unicode string representation of the character
      */
     private String getUnicodeText(TextPosition tp) {
         String text = tp.getUnicode();
@@ -469,6 +603,12 @@ public class TextExtractionEngine extends PDFTextStripper {
         return text;
     }
 
+    /**
+     * Handles line separator events.
+     * Finalizes the current line and prepares for a new line.
+     *
+     * @throws IOException if an error occurs during line processing
+     */
     @Override
     protected void writeLineSeparator() throws IOException {
         finalizeCurrentWord();
@@ -476,6 +616,13 @@ public class TextExtractionEngine extends PDFTextStripper {
         super.writeLineSeparator();
     }
 
+    /**
+     * Handles page end events.
+     * Finalizes any remaining text elements on the current page.
+     *
+     * @param page the current PDF page
+     * @throws IOException if an error occurs during page processing
+     */
     @Override
     protected void endPage(PDPage page) throws IOException {
         finalizeCurrentWord();
@@ -483,6 +630,10 @@ public class TextExtractionEngine extends PDFTextStripper {
         super.endPage(page);
     }
 
+    /**
+     * Resets the extraction state, clearing all cached chunks, lines, and words.
+     * Prepares the engine for a new extraction session.
+     */
     private void resetExtractionState() {
         cachedChunks.clear();
         cachedLines.clear();
@@ -496,29 +647,62 @@ public class TextExtractionEngine extends PDFTextStripper {
         newLineStarted = false;
     }
 
+    /**
+     * Extracts text chunks, lines, and words from a PDF document.
+     *
+     * @param document PDF document to process
+     * @return TextExtractionResult containing chunks, lines, and words
+     * @throws IOException if an error occurs during extraction
+     */
     public TextExtractionResult extractText(PDDocument document) throws IOException {
         extractAllInOnePass(document);
         return new TextExtractionResult(this.cachedChunks, this.cachedLines, this.cachedWords);
     }
 
+    /**
+     * Extracts all text chunks from the given PDF document.
+     * Performs a single-pass extraction and caches the results.
+     *
+     * @param document the PDF document to extract text from
+     * @return a list of PdfTextChunk objects representing the extracted text chunks
+     * @throws IOException if an error occurs during text extraction
+     */
     public List<PdfTextChunk> extractTextChunks(PDDocument document) throws IOException {
         extractAllInOnePass(document);
         return new ArrayList<>(cachedChunks);
     }
 
+    /**
+     * Extracts all text lines from the given PDF document.
+     * Performs a single-pass extraction and caches the results.
+     *
+     * @param document the PDF document to extract text lines from
+     * @return a list of TextLine objects representing the extracted text lines
+     * @throws IOException if an error occurs during text extraction
+     */
     public List<TextLine> extractTextLines(PDDocument document) throws IOException {
         extractAllInOnePass(document);
         return new ArrayList<>(cachedLines);
     }
 
+    /**
+     * Extracts all words from the given PDF document.
+     * Performs a single-pass extraction and caches the results.
+     *
+     * @param document the PDF document to extract words from
+     * @return a list of Word objects representing the extracted words
+     * @throws IOException if an error occurs during text extraction
+     */
     public List<Word> extractWords(PDDocument document) throws IOException {
         extractAllInOnePass(document);
         return new ArrayList<>(cachedWords);
     }
 
+
     public void clear() {
         resetExtractionState();
     }
+
 
     public int getTextChunkCount() {
         return cachedChunks.size();
