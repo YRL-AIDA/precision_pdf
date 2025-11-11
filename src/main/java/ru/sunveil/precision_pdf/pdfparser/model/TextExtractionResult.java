@@ -9,7 +9,7 @@ import java.util.List;
  */
 @Data
 public class TextExtractionResult {
-    private List<PdfTextChunk> textChunks;
-    private List<TextLine> textLines;
-    private List<Word> words;
+    private final List<PdfTextChunk> textChunks;
+    private final List<TextLine> textLines;
+    private final List<Word> words;
 }
