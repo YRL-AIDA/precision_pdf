@@ -12,6 +12,7 @@ import ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine;
+import ru.sunveil.precision_pdf.pdfparser.visualizer.PdfBoundingBoxRenderer;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,7 +43,12 @@ public class SimpleParser extends AbstractPdfBoxParser {
         try {
             document = Loader.loadPDF(pdfFile);
             this.currentDocument = document;
-            return parseDocument(document, pdfFile.getName());
+
+            TextExtractionResult globalTextResult = null;
+            if (extractionConfig.isExtractText()) {
+                globalTextResult = extractTextAllTextEntities(document);
+            }
+            return parseDocument(document, pdfFile.getName(), globalTextResult);
         } catch (IOException e) {
             throw new PdfParseException("Failed to load PDF document: " + pdfFile.getAbsolutePath(), e);
         } finally {
@@ -51,7 +57,17 @@ public class SimpleParser extends AbstractPdfBoxParser {
         }
     }
 
-    protected PdfDocument parseDocument(PDDocument document, String filename) {
+    @Override
+    public ru.sunveil.precision_pdf.pdfparser.model.TextExtractionResult extractTextAllTextEntities(PDDocument document) throws IOException {
+        if (document == null) {
+            throw new IllegalArgumentException("Document cannot be null");
+        }
+
+        TextExtractionEngine extractionEngine = new TextExtractionEngine();
+        return extractionEngine.extractText(document);
+    }
+
+    protected PdfDocument parseDocument(PDDocument document, String filename, TextExtractionResult textResult) {
         PdfDocument pdfDocument = new PdfDocument();
         pdfDocument.setFilename(filename);
         pdfDocument.setTotalPages(document.getNumberOfPages());
@@ -60,19 +76,18 @@ public class SimpleParser extends AbstractPdfBoxParser {
             pdfDocument.setMetadata(extractMetadata(document));
         }
 
-        pdfDocument.setPages(extractPages(document));
-
+        pdfDocument.setPages(extractPages(document, textResult));
         return pdfDocument;
     }
 
-    protected List<PdfPage> extractPages(PDDocument document) {
+    protected List<PdfPage> extractPages(PDDocument document, TextExtractionResult globalTextResult) {
         List<PdfPage> pages = new ArrayList<>();
         int pageCount = document.getNumberOfPages();
 
         for (int i = 0; i < pageCount; i++) {
             try {
                 PDPage pdPage = document.getPage(i);
-                PdfPage page = extractPage(pdPage, i + 1);
+                PdfPage page = extractPage(pdPage, i + 1, globalTextResult);
                 pages.add(page);
             } catch (Exception e) {
                 logger.error("Failed to extract page {}: {}", (i + 1), e.getMessage());
@@ -82,7 +97,7 @@ public class SimpleParser extends AbstractPdfBoxParser {
         return pages;
     }
 
-    protected PdfPage extractPage(PDPage page, int pageNumber) {
+    protected PdfPage extractPage(PDPage page, int pageNumber, TextExtractionResult globalTextResult) {
         PdfPage pdfPage = new PdfPage();
         pdfPage.setPageNumber(pageNumber);
 
@@ -91,16 +106,24 @@ public class SimpleParser extends AbstractPdfBoxParser {
             pdfPage.setHeight(page.getMediaBox().getHeight());
         }
 
-        if (extractionConfig.isExtractText()) {
+        if (extractionConfig.isExtractText() && globalTextResult != null) {
             try {
-                TextExtractionResult textResult = extractAllTextEntities(currentDocument, pageNumber);
+                List<Word> words = globalTextResult.getWords().stream()
+                        .filter(w -> w.getPageNumber() == pageNumber)
+                        .toList();
+                List<TextLine> lines = globalTextResult.getTextLines().stream()
+                        .filter(l -> l.getPageNumber() == pageNumber)
+                        .toList();
+                List<PdfTextChunk> chunks = globalTextResult.getTextChunks().stream()
+                        .filter(c -> c.getPageNumber() == pageNumber)
+                        .toList();
 
-                pdfPage.setWords(textResult.getWords());
-                pdfPage.setTextLines(textResult.getTextLines());
-                pdfPage.setPdfTextChunks(textResult.getTextChunks());
+                pdfPage.setWords(words);
+                pdfPage.setTextLines(lines);
+                pdfPage.setPdfTextChunks(chunks);
 
             } catch (Exception e) {
-                logger.error("Failed to extract text from page {}: {}", pageNumber, e.getMessage());
+                logger.error("Failed to assign text for page {}: {}", pageNumber, e.getMessage());
             }
         }
 
@@ -123,18 +146,6 @@ public class SimpleParser extends AbstractPdfBoxParser {
         }
 
         return pdfPage;
-    }
-
-    /**
-     * Новый метод - извлекает все текстовые сущности за один проход
-     */
-    private TextExtractionResult extractAllTextEntities(PDDocument document, int pageNumber) throws IOException {
-        TextExtractionEngine extractionEngine = new TextExtractionEngine();
-
-        extractionEngine.setStartPage(pageNumber);
-        extractionEngine.setEndPage(pageNumber);
-
-        return extractionEngine.extractText(document);
     }
 
     @Override
@@ -174,11 +185,6 @@ public class SimpleParser extends AbstractPdfBoxParser {
         } catch (IOException e) {
             throw new PdfParseException("Failed to extract words", e);
         }
-    }
-
-    @Override
-    public ru.sunveil.precision_pdf.pdfparser.model.TextExtractionResult extractTextAllTextEntities(PDDocument document) throws IOException {
-        return null;
     }
 
     @Override
