@@ -554,6 +554,10 @@
             <div class="tab" data-tab="export">Экспорт</div>
         </div>
 
+        <div style="margin-top: 1rem; text-align: right;">
+            <button class="btn btn-outline" id="downloadPdfBtn">Скачать PDF</button>
+        </div>
+
         <div class="tab-content active" id="metadataTab">
             <table class="metadata-table">
                 <thead>
@@ -695,6 +699,7 @@
         const resultsSection = document.getElementById('resultsSection');
         const errorMessage = document.getElementById('errorMessage');
         const successMessage = document.getElementById('successMessage');
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 
         // Элементы вкладок
         const tabs = document.querySelectorAll('.tab');
@@ -738,6 +743,36 @@
             // Обработчики для кнопок обработки
             processBtn.addEventListener('click', processPdf);
             metadataOnlyBtn.addEventListener('click', extractMetadataOnly);
+
+            downloadPdfBtn.addEventListener('click', async () => {
+                if (!currentFile) return;
+
+                const formData = new FormData();
+                formData.append('pdfFile', currentFile);
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/download/bbox`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) throw new Error('Ошибка при скачивании PDF');
+
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `processed_${currentFile.name}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                } catch (error) {
+                    alert('Не удалось скачать PDF: ' + error.message);
+                }
+            });
 
             // Обработчики для вкладок
             tabs.forEach(tab => {
