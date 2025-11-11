@@ -1,16 +1,26 @@
 package ru.sunveil.precision_pdf.controller;
 
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.core.io.Resource;
 import ru.sunveil.precision_pdf.controller.dto.ApiResponse;
 import ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig;
 import ru.sunveil.precision_pdf.pdfparser.export.ExportFormat;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfDocument;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfMetadata;
+import ru.sunveil.precision_pdf.pdfparser.visualizer.PdfBoundingBoxRenderer;
 import ru.sunveil.precision_pdf.service.PrecisionPdfExtractionService;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -65,6 +75,22 @@ public class PrecisionPdfController {
                     .body(ApiResponse.error("Extraction failed: " + e.getMessage(), processingTime));
         }
     }
+
+    @PostMapping("/download/bbox")
+    public ResponseEntity<Resource> downloadPdfWithBoundingBoxes() throws IOException {
+        File lastProcessedDocument = pdfExtractionService.getLastProcessedFile();
+        if (lastProcessedDocument == null){
+            return ResponseEntity.badRequest().body(null);
+        }
+        InputStreamResource resource = new InputStreamResource(new FileInputStream(lastProcessedDocument));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"pdf_with_boxes.pdf\"")
+                .contentLength(lastProcessedDocument.length())
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(resource);
+    }
+
+
 
     @GetMapping("/formats")
     public ResponseEntity<ApiResponse<List<String>>> getSupportedFormats() {

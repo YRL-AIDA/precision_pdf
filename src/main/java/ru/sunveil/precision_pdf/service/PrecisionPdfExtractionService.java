@@ -1,5 +1,6 @@
 package ru.sunveil.precision_pdf.service;
 
+import lombok.Getter;
 import org.apache.tomcat.jni.FileInfo;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.sunveil.precision_pdf.pdfparser.parser.PdfParseFactory;
 import ru.sunveil.precision_pdf.pdfparser.parser.PdfParser;
+import ru.sunveil.precision_pdf.pdfparser.visualizer.PdfBoundingBoxRenderer;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +29,9 @@ public class PrecisionPdfExtractionService {
     private final ExtractionConfig extractionConfig;
     private final ExporterFactory exporterFactory;
     private static final Logger logger = LoggerFactory.getLogger(PrecisionPdfExtractionService.class);
+    @Getter
+    private File lastProcessedFile;
+
 
     public PrecisionPdfExtractionService(PdfParseFactory pdfParseFactory,
                                          ExtractionConfig extractionConfig,
@@ -43,6 +48,10 @@ public class PrecisionPdfExtractionService {
         ExportFormat exportFormat = ExportFormat.valueOf(extractionConfig.getOutputFormat());
 
         try {
+            if (lastProcessedFile != null && lastProcessedFile.exists()) {
+                Files.deleteIfExists(lastProcessedFile.toPath());
+                lastProcessedFile = null;
+            }
             logger.info("Starting PDF processing for file: {}, format: {}",
                     multipartFile.getOriginalFilename(), exportFormat);
 
@@ -55,6 +64,12 @@ public class PrecisionPdfExtractionService {
             logger.info("PDF parsed successfully. Pages: {}, Images: {}",
                     document.getTotalPages(),
                     document.getImages() != null ? document.getImages().size() : 0);
+
+            File processedFile = File.createTempFile("processed_", ".pdf");
+            PdfBoundingBoxRenderer renderer = new PdfBoundingBoxRenderer();
+            renderer.renderBoundingBoxes(tempFile, processedFile, document.getPages());
+
+            lastProcessedFile = processedFile;
 
             Exporter exporter = exporterFactory.getExporter(ExportFormat.valueOf(extractionConfig.getOutputFormat()));
             if (!exporter.supportsFormat(exportFormat)) {
