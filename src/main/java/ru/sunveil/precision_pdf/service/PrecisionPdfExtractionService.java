@@ -12,6 +12,7 @@ import ru.sunveil.precision_pdf.pdfparser.export.ExporterFactory;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
 import ru.sunveil.precision_pdf.pdfparser.parser.PdfParseFactory;
 import ru.sunveil.precision_pdf.pdfparser.parser.PdfParser;
 import ru.sunveil.precision_pdf.pdfparser.visualizer.PdfBoundingBoxRenderer;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 @Service
 public class PrecisionPdfExtractionService {
@@ -30,7 +32,9 @@ public class PrecisionPdfExtractionService {
     private final ExporterFactory exporterFactory;
     private static final Logger logger = LoggerFactory.getLogger(PrecisionPdfExtractionService.class);
     @Getter
-    private File lastProcessedFile;
+    private PdfDocument lastDocument;
+    @Getter
+    private File lastUploadedFile;
 
 
     public PrecisionPdfExtractionService(PdfParseFactory pdfParseFactory,
@@ -48,28 +52,28 @@ public class PrecisionPdfExtractionService {
         ExportFormat exportFormat = ExportFormat.valueOf(extractionConfig.getOutputFormat());
 
         try {
-            if (lastProcessedFile != null && lastProcessedFile.exists()) {
-                Files.deleteIfExists(lastProcessedFile.toPath());
-                lastProcessedFile = null;
-            }
             logger.info("Starting PDF processing for file: {}, format: {}",
                     multipartFile.getOriginalFilename(), exportFormat);
 
             tempFile = convertMultipartFileToTempFile(multipartFile);
+
+            if (lastUploadedFile != null && lastUploadedFile.exists()) {
+                Files.deleteIfExists(lastUploadedFile.toPath());
+            }
+            lastUploadedFile = convertMultipartFileToTempFile(multipartFile);
+
             logger.debug("Created temporary file: {}", tempFile.getAbsolutePath());
 
             PdfParser parser = pdfParseFactory.createParser();
             PdfDocument document = parseWithConfig(parser, tempFile, extractionConfig);
 
+            lastDocument = document;
+
             logger.info("PDF parsed successfully. Pages: {}, Images: {}",
                     document.getTotalPages(),
                     document.getImages() != null ? document.getImages().size() : 0);
 
-            File processedFile = File.createTempFile("processed_", ".pdf");
-            PdfBoundingBoxRenderer renderer = new PdfBoundingBoxRenderer();
-            renderer.renderBoundingBoxes(tempFile, processedFile, document.getPages());
 
-            lastProcessedFile = processedFile;
 
             Exporter exporter = exporterFactory.getExporter(ExportFormat.valueOf(extractionConfig.getOutputFormat()));
             if (!exporter.supportsFormat(exportFormat)) {
@@ -92,6 +96,12 @@ public class PrecisionPdfExtractionService {
         } finally {
             cleanupTempFile(tempFile);
         }
+    }
+
+    public File createPdfWithBoundingBoxes(File inputPdf, File outputPdf, List<PdfPage> pdfPages, PdfBoundingBoxRenderer.BoxType boxType) throws IOException {
+        PdfBoundingBoxRenderer renderer = new PdfBoundingBoxRenderer();
+        renderer.renderBoundingBoxes(inputPdf, outputPdf, pdfPages, boxType);
+        return outputPdf;
     }
 
     public PdfDocument parsePdf(MultipartFile multipartFile, ExtractionConfig extractionConfig)

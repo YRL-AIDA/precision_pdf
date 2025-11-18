@@ -8,11 +8,9 @@ import org.slf4j.LoggerFactory;
 import ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig;
 import ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException;
 import ru.sunveil.precision_pdf.pdfparser.model.*;
-import ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine;
-import ru.sunveil.precision_pdf.pdfparser.visualizer.PdfBoundingBoxRenderer;
 
 import java.io.File;
 import java.io.IOException;
