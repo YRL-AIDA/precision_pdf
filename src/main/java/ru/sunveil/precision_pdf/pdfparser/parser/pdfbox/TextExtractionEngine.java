@@ -6,17 +6,17 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
+import org.apache.pdfbox.pdmodel.graphics.color.PDColor;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
-import ru.sunveil.precision_pdf.pdfparser.model.PdfTextChunk;
-import ru.sunveil.precision_pdf.pdfparser.model.TextExtractionResult;
-import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
-import ru.sunveil.precision_pdf.pdfparser.model.Word;
+import ru.sunveil.precision_pdf.pdfparser.model.*;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import org.apache.pdfbox.pdmodel.graphics.state.RenderingMode;
 
+import java.awt.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 
 /**
  * Engine for extracting text content from PDF documents using PDFBox library.
@@ -190,6 +190,7 @@ public class TextExtractionEngine extends PDFTextStripper {
                 }
             }
         }
+        finalizeCurrentWord();
     }
 
     /**
@@ -339,6 +340,14 @@ public class TextExtractionEngine extends PDFTextStripper {
 
         TextPosition styleTp = positions.get(Math.max(0, positions.size() / 2));
 
+        PDFFont pdfFont = new PDFFont();
+        pdfFont.setName(styleTp.getFont().getName());
+        pdfFont.setFontSize(styleTp.getFontSizeInPt());
+        pdfFont.setBold(isBoldFont(styleTp));
+        pdfFont.setItalic(isItalicFont(styleTp));
+
+        Color color = getColor(styleTp);
+
         Word word = new Word();
         word.setPageNumber(currentPageNumber);
         word.setBoundingBox(new BoundingBox(left, topY, width, height));
@@ -346,6 +355,10 @@ public class TextExtractionEngine extends PDFTextStripper {
         word.setFontName(styleTp.getFont().getName());
         word.setFontSize(styleTp.getFontSizeInPt());
         word.setConfidence(calculateConfidence(styleTp));
+        word.setOrder(order);
+        word.setFont(pdfFont);
+        word.setColor(color);
+        word.setSpaceWidth(styleTp.getWidthOfSpace());
 
         return word;
     }
@@ -386,14 +399,44 @@ public class TextExtractionEngine extends PDFTextStripper {
         BoundingBox bbox = new BoundingBox(left, minY, width, height);
         float lineHeight = calculateLineHeight(currentLineWords);
 
+        Word firstWord = currentLineWords.get(0);
+
         TextLine line = new TextLine();
         line.setPageNumber(currentPageNumber);
         line.setBoundingBox(bbox);
         line.setText(lineText.toString());
         line.setWords(new ArrayList<>(currentLineWords));
         line.setLineHeight(lineHeight);
+        line.setOrder(order);
+        line.setFont(firstWord.getFont());
+        line.setColor(firstWord.getColor());
+        line.setSpaceWidth(firstWord.getSpaceWidth());
 
         return line;
+    }
+
+    /**
+     * get color of element
+     *
+     * @param textPosition the TextPosition to get color from
+     * @return Color of element
+     */
+    private Color getColor(TextPosition textPosition) {
+        Color color = new Color(0);
+        try {
+            RenderingMode rm = getGraphicsState().getTextState().getRenderingMode();
+            if (rm == RenderingMode.FILL || rm == RenderingMode.NEITHER) {
+                PDColor pdColor = getGraphicsState().getNonStrokingColor();
+                color = new Color(pdColor.toRGB());
+            }
+            if (rm == RenderingMode.STROKE) {
+                PDColor pdColor = getGraphicsState().getStrokingColor();
+                color = new Color(pdColor.toRGB());
+            }
+        } catch (Exception e) {
+            color = new Color(0);
+        }
+        return color;
     }
 
     /**
