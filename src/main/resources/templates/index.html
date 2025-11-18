@@ -255,14 +255,14 @@
             margin-bottom: 1rem;
         }
 
-        .tab {
+        .tab, .viz-tab {
             padding: 0.75rem 1.5rem;
             cursor: pointer;
             border-bottom: 2px solid transparent;
             transition: all 0.3s;
         }
 
-        .tab.active {
+        .tab.active, .viz-tab.active {
             border-bottom-color: var(--primary-color);
             color: var(--primary-color);
             font-weight: 600;
@@ -415,6 +415,67 @@
             color: var(--primary-color);
         }
 
+        /* Стили для визуализации PDF */
+        .pdf-viewer {
+            width: 100%;
+            height: 600px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .pdf-viewer.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .pdf-viewer.loading {
+            opacity: 0.5;
+        }
+
+        .viz-controls {
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .viz-status {
+            margin-top: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        .pdf-container {
+            position: relative;
+            min-height: 600px;
+        }
+
+        .viz-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            border-radius: 6px;
+            display: none;
+            z-index: 10;
+        }
+
+        .no-viz-message {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            display: none;
+        }
+
+        .no-viz-message.active {
+            display: block;
+        }
+
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -437,6 +498,10 @@
                 flex-direction: column;
                 gap: 1rem;
                 text-align: center;
+            }
+
+            .pdf-viewer {
+                height: 400px;
             }
         }
     </style>
@@ -551,11 +616,8 @@
         <div class="tabs">
             <div class="tab active" data-tab="metadata">Метаданные</div>
             <div class="tab" data-tab="text">Текст</div>
+            <div class="tab" data-tab="visualization">Визуализация</div>
             <div class="tab" data-tab="export">Экспорт</div>
-        </div>
-
-        <div style="margin-top: 1rem; text-align: right;">
-            <button class="btn btn-outline" id="downloadPdfBtn">Скачать PDF</button>
         </div>
 
         <div class="tab-content active" id="metadataTab">
@@ -579,6 +641,38 @@
             <div style="margin-top: 1rem; text-align: right;">
                 <button class="btn btn-outline" id="copyTextBtn">Копировать текст</button>
                 <button class="btn" id="downloadTextBtn">Скачать как TXT</button>
+            </div>
+        </div>
+
+        <div class="tab-content" id="visualizationTab">
+            <div style="margin-bottom: 1rem;">
+                <p>Просмотр bounding boxes распознанных элементов. PDF будет сгенерирован после обработки документа.</p>
+            </div>
+
+            <div class="tabs" style="margin-bottom: 1rem;">
+                <div class="viz-tab active" data-viz-tab="words">Слова</div>
+                <div class="viz-tab" data-viz-tab="lines">Линии</div>
+                <div class="viz-tab" data-viz-tab="chunks">Чанки</div>
+            </div>
+
+            <div class="pdf-container">
+                <div class="viz-loading" id="vizLoadingIndicator">
+                    <div class="spinner"></div>
+                    <p>Загрузка визуализации...</p>
+                </div>
+
+                <div class="no-viz-message active" id="noVizMessage">
+                    <p>Визуализация будет доступна после обработки документа</p>
+                </div>
+
+                <!-- Контейнеры для каждого типа визуализации -->
+                <iframe class="pdf-viewer" id="pdfViewerWords" data-type="words"></iframe>
+                <iframe class="pdf-viewer" id="pdfViewerLines" data-type="lines"></iframe>
+                <iframe class="pdf-viewer" id="pdfViewerChunks" data-type="chunks"></iframe>
+            </div>
+
+            <div class="viz-controls">
+                <button class="btn" id="downloadCurrentVizBtn">Скачать текущий PDF</button>
             </div>
         </div>
 
@@ -684,6 +778,14 @@
     // Базовый URL API - замените на ваш реальный URL
     const API_BASE_URL = '/api/pdf';
 
+    const visualizationCache = {
+        words: { loaded: false, url: null, element: null },
+        lines: { loaded: false, url: null, element: null },
+        chunks: { loaded: false, url: null, element: null }
+    };
+
+    let currentVizType = 'words';
+
     document.addEventListener('DOMContentLoaded', function() {
         // Элементы интерфейса
         const uploadArea = document.getElementById('uploadArea');
@@ -699,11 +801,17 @@
         const resultsSection = document.getElementById('resultsSection');
         const errorMessage = document.getElementById('errorMessage');
         const successMessage = document.getElementById('successMessage');
-        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        const noVizMessage = document.getElementById('noVizMessage');
+
+        // PDF viewers для каждого типа
+        visualizationCache.words.element = document.getElementById('pdfViewerWords');
+        visualizationCache.lines.element = document.getElementById('pdfViewerLines');
+        visualizationCache.chunks.element = document.getElementById('pdfViewerChunks');
 
         // Элементы вкладок
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
+        const vizTabs = document.querySelectorAll('.viz-tab');
 
         // Текущий файл и результаты
         let currentFile = null;
@@ -712,6 +820,24 @@
         // Инициализация
         initializeEventListeners();
         loadSupportedFormats();
+
+        async function preloadAllVisualizations() {
+            if (!currentFile) return;
+
+            noVizMessage.classList.remove('active');
+
+
+            const types = ['words', 'lines', 'chunks'];
+            const loadPromises = [];
+
+            for (const type of types) {
+                loadPromises.push(loadVisualization(type));
+            }
+
+            await Promise.all(loadPromises);
+
+            showCurrentVisualization();
+        }
 
         function initializeEventListeners() {
             // Обработчики событий для загрузки файла
@@ -744,36 +870,6 @@
             processBtn.addEventListener('click', processPdf);
             metadataOnlyBtn.addEventListener('click', extractMetadataOnly);
 
-            downloadPdfBtn.addEventListener('click', async () => {
-                if (!currentFile) return;
-
-                const formData = new FormData();
-                formData.append('pdfFile', currentFile);
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/download/bbox`, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (!response.ok) throw new Error('Ошибка при скачивании PDF');
-
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `processed_${currentFile.name}`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
-                } catch (error) {
-                    alert('Не удалось скачать PDF: ' + error.message);
-                }
-            });
-
             // Обработчики для вкладок
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -791,8 +887,30 @@
                     if (tabId === 'export' && extractionResults) {
                         generateExportData();
                     }
+
+                    if (tabId === 'visualization') {
+                        showCurrentVisualization()
+                    }
                 });
             });
+
+            vizTabs.forEach(vizTab => {
+                vizTab.addEventListener('click', function() {
+                    const tabType = this.getAttribute('data-viz-tab');
+
+                    if (currentVizType === tabType) return;
+
+                    vizTabs.forEach(tab => tab.classList.remove('active'));
+                    this.classList.add('active');
+
+                    switchVisualization(tabType);
+                });
+            });
+
+            document.getElementById('downloadCurrentVizBtn').addEventListener('click', () => {
+                downloadVisualization(currentVizType);
+            });
+
         }
 
         // Функция загрузки поддерживаемых форматов
@@ -823,6 +941,8 @@
                 return;
             }
 
+            clearVisualizationCache();
+
             currentFile = file;
 
             // Обновление информации о файле
@@ -841,6 +961,29 @@
             resultsSection.style.display = 'none';
             errorMessage.style.display = 'none';
             successMessage.style.display = 'none';
+        }
+
+        function clearVisualizationCache() {
+            Object.values(visualizationCache).forEach(cache => {
+                if (cache.element) {
+                    cache.element.classList.remove('active');
+                    cache.element.src = '';
+                }
+            });
+
+            Object.keys(visualizationCache).forEach(key => {
+                if (visualizationCache[key].url) {
+                    URL.revokeObjectURL(visualizationCache[key].url);
+                }
+                visualizationCache[key] = {
+                    loaded: false,
+                    url: null,
+                    element: visualizationCache[key].element
+                };
+            });
+
+
+            noVizMessage.classList.add('active');
         }
 
         // Функция обработки PDF (полное извлечение)
@@ -884,6 +1027,8 @@
                     extractionResults = apiResponse.data;
                     displayResults(extractionResults, apiResponse.message, apiResponse.processingTimeMs);
                     showSuccess(`PDF успешно обработан за ${apiResponse.processingTimeMs} мс`);
+
+                    await preloadAllVisualizations();
                 } else {
                     showError(`Ошибка обработки: ${apiResponse.message}`);
                 }
@@ -940,6 +1085,76 @@
                 // Активировать кнопки обработки снова
                 processBtn.disabled = false;
                 metadataOnlyBtn.disabled = false;
+            }
+        }
+
+        function showCurrentVisualization() {
+
+            Object.values(visualizationCache).forEach(cache => {
+                if (cache.element) {
+                    cache.element.classList.remove('active');
+                }
+            });
+
+            if (visualizationCache[currentVizType] && visualizationCache[currentVizType].element) {
+                visualizationCache[currentVizType].element.classList.add('active');
+            }
+        }
+
+        function switchVisualization(type) {
+            currentVizType = type;
+            showCurrentVisualization();
+        }
+
+        async function loadVisualization(type) {
+            if (!currentFile) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/visualize/${type}`);
+
+                if (!response.ok) throw new Error('Ошибка загрузки визуализации');
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+
+                visualizationCache[type].url = url;
+                visualizationCache[type].loaded = true;
+
+                // Устанавливаем src для соответствующего viewer
+                if (visualizationCache[type].element) {
+                    visualizationCache[type].element.src = url;
+                }
+
+
+            } catch (error) {
+                console.error('Ошибка загрузки визуализации:', error);
+                visualizationCache[type].loaded = true;
+            }
+        }
+
+
+        async function downloadVisualization(type) {
+            if (!currentFile) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/visualize/${type}`);
+
+                if (!response.ok) throw new Error('Ошибка скачивания');
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `visualized_${type}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+            } catch (error) {
+                console.error('Ошибка скачивания:', error);
+                alert('Не удалось скачать PDF: ' + error.message);
             }
         }
 
