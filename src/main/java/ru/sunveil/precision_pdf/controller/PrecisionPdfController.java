@@ -1,5 +1,6 @@
 package ru.sunveil.precision_pdf.controller;
 
+import java.nio.file.Path;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -14,8 +15,10 @@ import ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig;
 import ru.sunveil.precision_pdf.pdfparser.export.ExportFormat;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfDocument;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfMetadata;
+import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
 import ru.sunveil.precision_pdf.pdfparser.visualizer.PdfBoundingBoxRenderer;
 import ru.sunveil.precision_pdf.service.PrecisionPdfExtractionService;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -76,21 +79,37 @@ public class PrecisionPdfController {
         }
     }
 
-    @PostMapping("/download/bbox")
-    public ResponseEntity<Resource> downloadPdfWithBoundingBoxes() throws IOException {
-        File lastProcessedDocument = pdfExtractionService.getLastProcessedFile();
-        if (lastProcessedDocument == null){
-            return ResponseEntity.badRequest().body(null);
+    @GetMapping("/visualize/{type}")
+    public ResponseEntity<Resource> VisualizeBbox(@PathVariable("type") String type) throws IOException {
+        try {
+
+            if (pdfExtractionService.getLastUploadedFile() == null ||
+                    pdfExtractionService.getLastDocument() == null) {
+                return ResponseEntity.badRequest().body(null);
+            }
+
+            PdfBoundingBoxRenderer renderer = new PdfBoundingBoxRenderer();
+
+            File inputFile = pdfExtractionService.getLastUploadedFile();
+            File outputFile = File.createTempFile("processed_" + type, ".pdf");
+            List<PdfPage> pdfPages = pdfExtractionService.getLastDocument().getPages();
+            PdfBoundingBoxRenderer.BoxType boxType = PdfBoundingBoxRenderer.BoxType.valueOf(type.toUpperCase());
+
+            renderer.renderBoundingBoxes(inputFile, outputFile, pdfPages, boxType);
+
+            byte[] fileContent = Files.readAllBytes(outputFile.toPath());
+            ByteArrayResource resource = new ByteArrayResource(fileContent);
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=visualized_" + type + ".pdf")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .contentLength(outputFile.length())
+                    .body(resource);
+
+        } catch (IllegalArgumentException e ){
+          return ResponseEntity.badRequest().body(null);
         }
-        InputStreamResource resource = new InputStreamResource(new FileInputStream(lastProcessedDocument));
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"pdf_with_boxes.pdf\"")
-                .contentLength(lastProcessedDocument.length())
-                .contentType(MediaType.APPLICATION_PDF)
-                .body(resource);
     }
-
-
 
     @GetMapping("/formats")
     public ResponseEntity<ApiResponse<List<String>>> getSupportedFormats() {
