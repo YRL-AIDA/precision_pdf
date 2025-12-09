@@ -9,6 +9,7 @@ import java.util.List;
 public class PdfTextChunk extends TextEntity {
     private List<TextLine> lines;
     private String style;
+    private int order;
 
     public PdfTextChunk(){
         super();

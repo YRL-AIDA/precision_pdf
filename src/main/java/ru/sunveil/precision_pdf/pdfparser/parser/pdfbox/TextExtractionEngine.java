@@ -39,7 +39,6 @@ public class TextExtractionEngine extends PDFTextStripper {
     private StringBuilder lineText;
     private List<Word> currentLineWords;
 
-    // Word extraction state
     private StringBuilder currentWordText;
     private List<TextPosition> currentWordPositions;
     private float wordStartX, wordStartY, wordEndX, wordEndY;
@@ -74,7 +73,6 @@ public class TextExtractionEngine extends PDFTextStripper {
         this.currentWordText = new StringBuilder();
         this.currentWordPositions = new ArrayList<>();
 
-        this.setSortByPosition(true);
         this.setShouldSeparateByBeads(false);
     }
 
@@ -98,11 +96,10 @@ public class TextExtractionEngine extends PDFTextStripper {
             currentPageNumber = i + 1;
             PDRectangle pageSize = page.getMediaBox();
             pageHeight = pageSize.getHeight();
-
+            order = -1;
             setStartPage(currentPageNumber);
             setEndPage(currentPageNumber);
 
-            order = -1;
             newLineStarted = false;
             lineText.setLength(0);
             currentLineWords.clear();
@@ -273,7 +270,7 @@ public class TextExtractionEngine extends PDFTextStripper {
      */
     private void finalizeCurrentWord() {
         if (currentWordText.length() > 0 && !currentWordPositions.isEmpty()) {
-            Word word = createWord(currentWordText.toString(), currentWordPositions);
+            Word word = createWord(currentWordText.toString(), currentWordPositions, order);
             cachedWords.add(word);
             currentLineWords.add(word);
 
@@ -312,6 +309,7 @@ public class TextExtractionEngine extends PDFTextStripper {
         chunk.setPageNumber(currentPageNumber);
         chunk.setBoundingBox(bbox);
         chunk.setText(text);
+        chunk.setOrder(order);
         chunk.setStyle(extractTextStyle(positions.get(0)));
 
         return chunk;
@@ -324,7 +322,7 @@ public class TextExtractionEngine extends PDFTextStripper {
      * @param positions list of TextPosition objects for the word
      * @return Word object with bounding box and style
      */
-    private Word createWord(String text, List<TextPosition> positions) {
+    private Word createWord(String text, List<TextPosition> positions, int order) {
         float left = wordStartX;
         float width = wordEndX - wordStartX;
         float topY = Math.min(wordStartY, wordEndY);
