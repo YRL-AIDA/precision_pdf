@@ -2,6 +2,9 @@ package ru.sunveil.precision_pdf.pdfparser.visualizer;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.*;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
@@ -48,6 +51,7 @@ public class PdfBoundingBoxRenderer {
                             float height = bbox.getHeight();
                             contentStream.addRect(x, y, width, height);
                             contentStream.stroke();
+                            drawOrderText(contentStream, String.valueOf(word.getOrder()), x, y + height + 2);
                         }
                     }
 
@@ -62,6 +66,7 @@ public class PdfBoundingBoxRenderer {
                             float height = bbox.getHeight();
                             contentStream.addRect(x, y, width, height);
                             contentStream.stroke();
+                            drawOrderText(contentStream, String.valueOf(line.getOrder()), x, y + height + 2);
                         }
                     }
 
@@ -77,6 +82,7 @@ public class PdfBoundingBoxRenderer {
                                 float height = bbox.getHeight();
                                 contentStream.addRect(x, y, width, height);
                                 contentStream.stroke();
+                                drawOrderText(contentStream, String.valueOf(chunk.getOrder()), x, y + height + 2);
                             }
                         }
                     }
@@ -84,5 +90,17 @@ public class PdfBoundingBoxRenderer {
             }
             document.save(outputPdf);
         }
+    }
+
+    /**
+     * Draw order text above a bounding box
+     */
+    private void drawOrderText(PDPageContentStream contentStream, String orderText, float x, float y) throws IOException {
+        contentStream.beginText();
+        contentStream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 6);
+        contentStream.setNonStrokingColor(Color.BLACK); // Black text
+        contentStream.newLineAtOffset(x, y);
+        contentStream.showText(orderText);
+        contentStream.endText();
     }
 }
