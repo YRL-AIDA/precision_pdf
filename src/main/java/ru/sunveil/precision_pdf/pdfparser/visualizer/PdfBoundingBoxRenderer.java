@@ -5,21 +5,19 @@ import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
-import java.awt.Color;
+
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
-import ru.sunveil.precision_pdf.pdfparser.model.PdfTextChunk;
-import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
-import ru.sunveil.precision_pdf.pdfparser.model.Word;
+import ru.sunveil.precision_pdf.pdfparser.model.*;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 
 public class PdfBoundingBoxRenderer {
     public enum BoxType {
-        WORDS, LINES, CHUNKS
+        WORDS, LINES, CHUNKS, RULINGS
     }
     /**
      * Нарисовать bounding box слов/линий/чанков
@@ -83,6 +81,24 @@ public class PdfBoundingBoxRenderer {
                                 contentStream.addRect(x, y, width, height);
                                 contentStream.stroke();
                                 drawOrderText(contentStream, String.valueOf(chunk.getOrder()), x, y + height + 2);
+                            }
+                        }
+                    }
+
+                    if (boxType == BoxType.RULINGS){
+                        contentStream.setStrokingColor(Color.GREEN);
+                        contentStream.setLineWidth(0.3f);
+                        for (Ruling ruling : pdfPage.getVisibleRulings()) {
+//                            BoundingBox bbox = new BoundingBox()
+                            if (ruling != null) {
+                                Rectangle rec = ruling.getBounds();
+                                float x = (float) rec.getX();
+                                float y = (float) rec.getY();
+                                float width = (float) rec.getWidth();
+                                float height = (float) rec.getHeight();
+                                contentStream.addRect(x, y, width, height);
+                                contentStream.stroke();
+//                                drawOrderText(contentStream, String.valueOf(chunk.getOrder()), x, y + height + 2);
                             }
                         }
                     }

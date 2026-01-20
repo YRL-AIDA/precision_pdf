@@ -3,15 +3,19 @@ package ru.sunveil.precision_pdf.pdfparser.parser;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig;
 import ru.sunveil.precision_pdf.pdfparser.exceptions.PdfParseException;
 import ru.sunveil.precision_pdf.pdfparser.model.*;
+import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine;
+import ru.sunveil.precision_pdf.pdfparser.table.VisibleRulingExtractor;
 
+import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,16 +69,18 @@ public class SimpleParser extends AbstractPdfBoxParser {
         return extractionEngine.extractText(document);
     }
 
-    protected PdfDocument parseDocument(PDDocument document, String filename, TextExtractionResult textResult) {
-        PdfDocument pdfDocument = new PdfDocument();
+    protected PdfDocument parseDocument(PDDocument document, String filename, TextExtractionResult textResult) throws IOException {
+        PdfDocument pdfDocument = new PdfDocument(document);
         pdfDocument.setFilename(filename);
         pdfDocument.setTotalPages(document.getNumberOfPages());
+        pdfDocument.setVisibleRulingExtractor(new VisibleRulingExtractor(document));
 
         if (extractionConfig.isExtractMetadata()) {
             pdfDocument.setMetadata(extractMetadata(document));
         }
 
         pdfDocument.setPages(extractPages(document, textResult));
+        pdfDocument.extractLines();
         return pdfDocument;
     }
 
@@ -86,6 +92,8 @@ public class SimpleParser extends AbstractPdfBoxParser {
             try {
                 PDPage pdPage = document.getPage(i);
                 PdfPage page = extractPage(pdPage, i + 1, globalTextResult);
+                page.setDocument(document);
+                page.setIndex(i);
                 pages.add(page);
             } catch (Exception e) {
                 logger.error("Failed to extract page {}: {}", (i + 1), e.getMessage());
@@ -98,6 +106,9 @@ public class SimpleParser extends AbstractPdfBoxParser {
     protected PdfPage extractPage(PDPage page, int pageNumber, TextExtractionResult globalTextResult) {
         PdfPage pdfPage = new PdfPage();
         pdfPage.setPageNumber(pageNumber);
+        PDRectangle pdfbbox = page.getMediaBox();
+        BoundingBox q = new BoundingBox(pdfbbox.getLowerLeftX(), pdfbbox.getLowerLeftY(), pdfbbox.getWidth(), pdfbbox.getHeight());
+        pdfPage.setBoundingBox(q);
 
         if (page.getMediaBox() != null) {
             pdfPage.setWidth(page.getMediaBox().getWidth());
