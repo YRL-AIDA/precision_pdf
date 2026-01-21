@@ -3,9 +3,12 @@ package ru.sunveil.precision_pdf.pdfparser.model;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import ru.sunveil.precision_pdf.pdfparser.util.GeometryUtils;
 
+import java.awt.*;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.*;
+import java.util.List;
 
 public class Ruling extends Line2D.Float {
 
@@ -322,6 +325,19 @@ public class Ruling extends Line2D.Float {
             return false;
         }
         return true;
+    }
+
+    public Rectangle2D getRect(float pageHeight){
+        Rectangle2D bounds = this.getBounds2D();
+
+        float x = (float) bounds.getX();
+        float y = (float) bounds.getY();
+        float width = (float) bounds.getWidth();
+        float height = (float) bounds.getHeight();
+
+        float pdfY = pageHeight - y - height;
+
+        return new Rectangle2D.Float(x, pdfY, width, height);
     }
 
 //    public BoundingBox getBoundingBox(){

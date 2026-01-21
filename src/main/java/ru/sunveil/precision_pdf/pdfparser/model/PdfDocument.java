@@ -28,7 +28,6 @@ public class PdfDocument {
     public void extractLines() throws IOException {
         for (PdfPage page: pages) {
             visibleRulingExtractor.process(page);
-            int x =1;
         }
     }
 }
