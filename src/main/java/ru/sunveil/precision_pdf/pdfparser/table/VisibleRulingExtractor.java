@@ -39,7 +39,7 @@ public class VisibleRulingExtractor {
 
     private static final int GRAYSCALE_INTENSITY_THRESHOLD = 25;
     private static final int VERTICAL_EDGE_HEIGHT_MINIMUM = 10;
-    private static final int HORIZONTAL_EDGE_WIDTH_MINIMUM = 50;
+    private static final int HORIZONTAL_EDGE_WIDTH_MINIMUM = 30;
     private static final int EXPAND_AMOUNT = 1;
 
     private final PDDocument pdDocument;
