@@ -2,6 +2,7 @@ package ru.sunveil.precision_pdf.pdfparser.model.core;
 
 import lombok.Data;
 
+import java.util.Comparator;
 import java.util.Objects;
 
 /**
@@ -15,6 +16,10 @@ public class BoundingBox {
     private float y;
     private float width;
     private float height;
+
+    public static final Comparator<BoundingBox> RECTANGLE_COMPARATOR =
+            Comparator.comparing(BoundingBox::getTop).reversed()
+                    .thenComparing(BoundingBox::getX);
 
     /**
      * Конструктор по умолчанию
@@ -389,6 +394,20 @@ public class BoundingBox {
         );
     }
 
+    public void add(BoundingBox b){
+        double x1 = Math.min(getX(), b.getX());
+        double x2 = Math.max(getWidth(), b.getWidth());
+        double y1 = Math.min(getY(), b.getY());
+        double y2 = Math.max(getHeight(), b.getHeight());
+        setRect(x1, y1, x2 - x1, y2 - y1);
+    }
+
+    public void setRect(double x, double y, double w, double h){
+        this.setX((float) x);
+        this.setY((float) y);
+        this.setWidth((float) w);
+        this.setHeight((float) h);
+    }
     /**
      * Статический метод для создания пустой невалидной рамки
      */
