@@ -85,7 +85,19 @@ public class SimpleParser extends AbstractPdfBoxParser {
 
         pdfDocument.setPages(extractPages(document, textResult));
         pdfDocument.extractLines();
+        extractTablesFromDocument(pdfDocument);
         return pdfDocument;
+    }
+
+    protected void extractTablesFromDocument(PdfDocument pdfDocument){
+        for (PdfPage page: pdfDocument.getPages()) {
+            try {
+                page.setTables(extractTables(page).getTables());
+            } catch (Exception e) {
+                logger.error("Failed to extract tables from page {}: {}", page.getPageNumber(), e.getMessage());
+            }
+        }
+//        return pages;
     }
 
     protected List<PdfPage> extractPages(PDDocument document, TextExtractionResult globalTextResult) {
@@ -141,7 +153,7 @@ public class SimpleParser extends AbstractPdfBoxParser {
         }
 
 //        if (extractionConfig.isExtractTables()) {
-        if (true){
+        if (false){
             try {
                 pdfPage.setTables(extractTables(pdfPage).getTables());
             } catch (Exception e) {
