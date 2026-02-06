@@ -9,8 +9,8 @@ public class BorderedTableSeparator {
     public BorderedTableSeparator() {
         borderedTableSeparators = new IBorderedTableSeparator[] {
                 new CellsCountSeparator(),
-                new CRCountCompositionSeparator(),
-                new AverageChunksPerCellSeparator(),
+//                new CRCountCompositionSeparator(),
+//                new AverageChunksPerCellSeparator(),
                 new CellsCountSeparator()
         };
     }

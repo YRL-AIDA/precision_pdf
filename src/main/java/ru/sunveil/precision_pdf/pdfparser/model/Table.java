@@ -1,5 +1,7 @@
 package ru.sunveil.precision_pdf.pdfparser.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import lombok.Data;
 import ru.sunveil.precision_pdf.pdfparser.model.core.*;
 import ru.sunveil.precision_pdf.pdfparser.table.Row;
@@ -8,6 +10,7 @@ import ru.sunveil.precision_pdf.pdfparser.table.bordered.Range;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 public class Table implements PdfEntity {
@@ -31,6 +34,7 @@ public class Table implements PdfEntity {
         setBoundingBox(b);
         this.type = type;
         this.order = Integer.MIN_VALUE;
+        rows = new ArrayList<>(1000);
     }
     public void setHorizontal(ArrayList<Range> horizontal) {
         this.horizontal = horizontal;
@@ -43,14 +47,16 @@ public class Table implements PdfEntity {
         this.order = Math.max(this.order, cell.getOrder());
         if (rows.size() < rowId + 1) {
             for (int i = rows.size(); i < rowId + 1; i++) {
-                rows.add(new Row(rowId));
+                rows.add(new ArrayList<>());
             }
         }
-        rows.get(rowId).addCell(cell);
+        rows.get(rowId).add(cell);
 
-        cells.add(cell); // I added this code to read cells in the draw debugging (A. Shigarov)
     }
-    public int getNumOfCells(){
-        return cells.size();
+    public int getNumOfCells() {
+        return rows == null ? 0 : rows.stream()
+                .filter(Objects::nonNull)
+                .mapToInt(List::size)
+                .sum();
     }
 }

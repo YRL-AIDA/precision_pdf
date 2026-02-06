@@ -16,7 +16,7 @@ public class PdfDocument {
     private PdfMetadata metadata;
     private List<PdfPage> pages;
     private List<PdfImage> images;
-    @JsonIgnore
+
     private final PDDocument pdDocument;
     @JsonIgnore
     private VisibleRulingExtractor visibleRulingExtractor;

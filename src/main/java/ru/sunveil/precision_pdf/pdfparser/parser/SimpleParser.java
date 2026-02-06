@@ -13,6 +13,7 @@ import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine;
+import ru.sunveil.precision_pdf.pdfparser.table.BorderedTableExtractor;
 import ru.sunveil.precision_pdf.pdfparser.table.VisibleRulingExtractor;
 
 import java.io.File;
@@ -49,6 +50,10 @@ public class SimpleParser extends AbstractPdfBoxParser {
             if (extractionConfig.isExtractText()) {
                 globalTextResult = extractTextAllTextEntities(document);
             }
+//            TableExtractionResult globalTableResult = null;
+//            if (extractionConfig.isExtractTables()){
+//                TableExtractionResult = extractTables(document);
+//            }
             return parseDocument(document, pdfFile.getName(), globalTextResult);
         } catch (IOException e) {
             throw new PdfParseException("Failed to load PDF document: " + pdfFile.getAbsolutePath(), e);
@@ -135,9 +140,10 @@ public class SimpleParser extends AbstractPdfBoxParser {
             }
         }
 
-        if (extractionConfig.isExtractTables()) {
+//        if (extractionConfig.isExtractTables()) {
+        if (true){
             try {
-                pdfPage.setTables(extractTables(currentDocument));
+                pdfPage.setTables(extractTables(pdfPage).getTables());
             } catch (Exception e) {
                 logger.error("Failed to extract tables from page {}: {}", pageNumber, e.getMessage());
             }
@@ -216,12 +222,12 @@ public class SimpleParser extends AbstractPdfBoxParser {
     }
 
     @Override
-    public List<Table> extractTables(PDDocument document) {
-        if (document == null) {
-            throw new IllegalArgumentException("Document cannot be null");
+    public TableExtractionResult extractTables(PdfPage page) throws IOException {
+        if (page == null) {
+            throw new IllegalArgumentException("Page cannot be null");
         }
-        logger.info("Table extraction not implemented in base class");
-        return new ArrayList<>();
+        BorderedTableExtractor bte = new BorderedTableExtractor();
+        return bte.extractTables(page);
     }
 
     protected ExtractionConfig getDefaultExtractionConfig() {

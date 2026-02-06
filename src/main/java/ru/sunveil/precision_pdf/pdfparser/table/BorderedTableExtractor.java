@@ -1,10 +1,8 @@
 package ru.sunveil.precision_pdf.pdfparser.table;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
-import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
-import ru.sunveil.precision_pdf.pdfparser.model.Ruling;
-import ru.sunveil.precision_pdf.pdfparser.model.Table;
-import ru.sunveil.precision_pdf.pdfparser.model.TableCell;
+import org.apache.pdfbox.pdmodel.PDPage;
+import ru.sunveil.precision_pdf.pdfparser.model.*;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity;
 import ru.sunveil.precision_pdf.pdfparser.parser.TableExtractor;
@@ -18,7 +16,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public final class BorderedTableExtractor extends AbstractTableExtractor implements TableExtractor {
+public final class BorderedTableExtractor implements TableExtractor {
 
     private static final Comparator<Point2D> POINT_COMPARATOR = new Comparator<Point2D>() {
         @Override
@@ -71,8 +69,7 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
     private final List<Ruling> horizontalRulings;
     private Map<Point2D, Ruling[]> intersectionPoints;
 
-    public BorderedTableExtractor(PdfPage page) {
-        super(page);
+    public BorderedTableExtractor() {
         verticalRulings = new ArrayList<>();
         horizontalRulings = new ArrayList<>();
         intersectionPoints = new TreeMap<>();
@@ -80,11 +77,9 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
 
 
 
-    public List<Table> extractTables(PDDocument document) throws IOException {
+    public TableExtractionResult extractTables(PdfPage page) throws IOException {
 
         List<Table> result = null;
-
-        PdfPage page = getPage();
 
         if (isExtractTables(page)) {
 
@@ -100,11 +95,10 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
             }
         }
 
-//        return result.isEmpty() ? null : result;
-        return null;
+        return new TableExtractionResult(result);
     }
     private boolean isExtractTables(PdfPage page) {
-        classifyRulings();
+        classifyRulings(page);
         ArrayList<Ruling> joinedHorizontalRulings =
                 (ArrayList<Ruling>) joinRulings(horizontalRulings, Ruling.DISTANCE_TOLERANCE);
         ArrayList<Ruling> joinedVerticalRulings =
@@ -161,7 +155,7 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
                 vertical_range = new Range(c.getTop(), c.getY());
                 join(vertical, vertical_range);
             }
-
+            //setrows
             if (filteredTableCells.size() < Factors.MIN_CELLS_COUNT_FACTOR || horizontal.size() < 2) {
                 page.addPossibleTableArea(area);
                 continue;
@@ -172,6 +166,8 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
             }
 
             Table table = new Table(area.getX(), area.getTop(), area.getRight(), area.getY(), TableType.UNKNOWN);
+
+            table.setRows(new ArrayList<>(vertical.size()-1));
 
             Collections.sort(horizontal, new RangeComporator());
             Collections.sort(vertical, new RangeComporator());
@@ -209,6 +205,11 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
                 int endColumn = getEndColumn(c, horizontal);
                 int startRow = getStartRow(c, vertical);
                 int endRow = getEndRow(c, vertical);
+
+                int rowSpan = endRow - startRow;
+                int colSpan = endColumn - startColumn;
+
+
 
 //                BoundingBox bbox = new BoundingBox(c.getLeft(), c.getTop(), c.getRight(), c.getBottom());
                 BoundingBox bbox = new BoundingBox(c.getX(), c.getY(), c.getWidth(), c.getHeight());
@@ -300,9 +301,7 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
         intersectionPoints = Ruling.findIntersections(horizontalRulings, verticalRulings);
     }
 
-    private void classifyRulings() {
-
-        PdfPage page = getPage();
+    private void classifyRulings(PdfPage page) {
         Iterator<Ruling> rulingIterator = page.getBorderedTableRulings();
 
         while (rulingIterator.hasNext()) {
@@ -364,6 +363,13 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
         List<BoundingBox> cellsFound = new ArrayList<>();
         List<Point2D> intersectionPointsList = new ArrayList<>(intersectionPoints.keySet());
         Collections.sort(intersectionPointsList, POINT_COMPARATOR);
+
+        // Найдем максимальную Y-координату для преобразования
+        float maxY = 0;
+        for (Point2D point : intersectionPointsList) {
+            maxY = Math.max(maxY, (float)point.getY());
+        }
+
         boolean doBreak = false;
 
         for (int i = 0; i < intersectionPointsList.size(); i++) {
@@ -399,7 +405,16 @@ public final class BorderedTableExtractor extends AbstractTableExtractor impleme
                     if (intersectionPoints.containsKey(btmRight)
                             && intersectionPoints.get(btmRight)[0].equals(intersectionPoints.get(xPoint)[0])
                             && intersectionPoints.get(btmRight)[1].equals(intersectionPoints.get(yPoint)[1])) {
-                        cellsFound.add(new BoundingBox(topLeft, btmRight));
+
+                        float x = (float) topLeft.getX();
+                        float topY = (float) topLeft.getY();
+                        float bottomY = (float) btmRight.getY();
+
+                        float y = maxY - bottomY;
+                        float width = (float) (btmRight.getX() - x);
+                        float height = bottomY - topY;
+
+                        cellsFound.add(new BoundingBox(x, y, width, height));
                         doBreak = true;
                         break outer;
                     }

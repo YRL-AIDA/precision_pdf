@@ -1,11 +1,13 @@
 package ru.sunveil.precision_pdf.pdfparser.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import lombok.Data;
 import ru.sunveil.precision_pdf.pdfparser.model.core.*;
 
 import java.util.List;
 
 @Data
+@JsonIgnoreType
 public class TableCell implements PdfEntity {
     public static final float MIN_CELL_WIDTH = 10;
     public static final float MIN_CELL_HEIGHT = 5;
@@ -30,7 +32,6 @@ public class TableCell implements PdfEntity {
     }
 
     public TableCell(BoundingBox bbox, int invisible, List<TextEntity> contentBlocks, int cl, int rt, int cr, int rb) {
-//        super(bbox.getLeft(), bbox.getTop(), bbox.getRight(), bbox.getBottom());
         setBoundingBox(bbox);
         this.contentBlocks = contentBlocks;
         this.order = Integer.MIN_VALUE;
@@ -48,5 +49,11 @@ public class TableCell implements PdfEntity {
         this.cr = cr;
         assert (rb >= rt);
         this.rb = rb;
+    }
+
+    public TableCell(BoundingBox bbox, int rowSpan, int colspan){
+        setBoundingBox(bbox);
+        this.rowSpan = rowSpan;
+
     }
 }

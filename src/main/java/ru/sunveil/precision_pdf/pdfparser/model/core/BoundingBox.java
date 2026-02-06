@@ -2,6 +2,7 @@ package ru.sunveil.precision_pdf.pdfparser.model.core;
 
 import lombok.Data;
 
+import java.awt.geom.Point2D;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -413,5 +414,14 @@ public class BoundingBox {
      */
     public static BoundingBox empty() {
         return new BoundingBox(0, 0, 0, 0);
+    }
+
+    public Point2D[] getPoints() {
+        return new Point2D[] {
+                new Point2D.Double(this.getX(), this.getTop()),
+                new Point2D.Double(this.getRight(), this.getTop()),
+                new Point2D.Double(this.getRight(), this.getY()),
+                new Point2D.Double(this.getX(), this.getY())
+        };
     }
 }
