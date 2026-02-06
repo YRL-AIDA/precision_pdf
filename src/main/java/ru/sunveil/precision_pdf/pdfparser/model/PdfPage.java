@@ -17,12 +17,10 @@ public class PdfPage implements PdfEntity {
     private int pageNumber;
     private double width;
     private double height;
-
     private int index;
 
     @JsonIgnore
     private PDDocument document;
-
     private List<Word> words = new ArrayList<>();
     private List<TextLine> textLines = new ArrayList<>();
     private List<PdfTextChunk> pdfTextChunks = new ArrayList<>();
@@ -38,7 +36,6 @@ public class PdfPage implements PdfEntity {
     @JsonIgnore
     private List<Ruling> visibleRulings = new ArrayList<>();
 
-    @JsonIgnore
     private BoundingBox pageBbox;
 
     @Override
@@ -55,10 +52,12 @@ public class PdfPage implements PdfEntity {
     public void setBoundingBox(BoundingBox bbox) {
         this.pageBbox = bbox;
     }
+
     @JsonIgnore
     public PDPage getPDPage() {
         return document.getPage(index);
     }
+
     public boolean addVisibleRulings(List<Ruling> visibleRulings) {
         this.visibleRulings.clear();
         boolean result = visibleRulings == null ? false : this.visibleRulings.addAll(visibleRulings);
@@ -104,6 +103,7 @@ public class PdfPage implements PdfEntity {
         }
         tables.add(table);
     }
+    @JsonIgnore
     public Iterator<Ruling> getBorderedTableRulings() {
         return visibleRulings.iterator();
     }
