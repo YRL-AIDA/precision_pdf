@@ -141,6 +141,8 @@ public final class BorderedTableExtractor implements TableExtractor {
                 boolean isIntersected = false;
                 for (BoundingBox c1: filteredTableCells) {
                     if (c1.intersects(c)) {
+                        System.out.println(c.getX() + " " + c.getY() + " " + c.getWidth() + " " + c.getHeight());
+                        System.out.println(c1.getX() + " " + c1.getY() + " " + c1.getWidth() + " " + c1.getHeight());
                         c1.add(c);
                         isIntersected = true;
                     }
@@ -155,7 +157,7 @@ public final class BorderedTableExtractor implements TableExtractor {
                 vertical_range = new Range(c.getTop(), c.getY());
                 join(vertical, vertical_range);
             }
-            //setrows
+            
             if (filteredTableCells.size() < Factors.MIN_CELLS_COUNT_FACTOR || horizontal.size() < 2) {
                 page.addPossibleTableArea(area);
                 continue;
@@ -167,7 +169,21 @@ public final class BorderedTableExtractor implements TableExtractor {
 
             Table table = new Table(area.getX(), area.getTop(), area.getRight(), area.getY(), TableType.UNKNOWN);
 
-            table.setRows(new ArrayList<>(vertical.size()-1));
+//            table.setRows(new ArrayList<>(vertical.size()-1));
+//            List<List<TableCell>> rows = new ArrayList<>(vertical.size() - 1);
+            int numRows = vertical.size() - 1;
+            int numCols = horizontal.size() - 1;
+
+            table.setRowCount(numRows);
+            table.setColumnCount(numCols);
+
+            List<List<TableCell>> rows = new ArrayList<>(numRows);
+            for (int i = 0; i < numRows; i++){
+                List<TableCell> row = new ArrayList<>(Collections.nCopies(numCols, null));
+
+                rows.add(row);
+            }
+            table.setRows(rows);
 
             Collections.sort(horizontal, new RangeComporator());
             Collections.sort(vertical, new RangeComporator());
@@ -188,19 +204,6 @@ public final class BorderedTableExtractor implements TableExtractor {
                         .filter(tb -> c.intersects(tb.getBoundingBox()))
                         .collect(Collectors.toList());
 
-/*                if (null != cellBlocks && cellBlocks.size() > 1) {
-                    // Merge all blocks located inside the cell into the first one
-                    TextChunk mergedCellBlock = mergeCellBlocks(cellBlocks);
-                    // Remove merged blocks except the first one from the page
-                    for (int k = 1; k < cellBlocks.size(); k++) {
-                        TextChunk block = cellBlocks.get(k);
-                        block.retract();
-                    }
-                    // Now, only one merged block go to the cell content
-                    cellBlocks.clear();
-                    cellBlocks.add(mergedCellBlock);
-                }*/
-
                 int startColumn = getStartColumn(c, horizontal);
                 int endColumn = getEndColumn(c, horizontal);
                 int startRow = getStartRow(c, vertical);
@@ -211,7 +214,6 @@ public final class BorderedTableExtractor implements TableExtractor {
 
 
 
-//                BoundingBox bbox = new BoundingBox(c.getLeft(), c.getTop(), c.getRight(), c.getBottom());
                 BoundingBox bbox = new BoundingBox(c.getX(), c.getY(), c.getWidth(), c.getHeight());
                 TableCell cell = new TableCell(bbox, 0, cellBlocks, startColumn, startRow, endColumn, endRow);
 
@@ -407,14 +409,15 @@ public final class BorderedTableExtractor implements TableExtractor {
                             && intersectionPoints.get(btmRight)[1].equals(intersectionPoints.get(yPoint)[1])) {
 
                         float x = (float) topLeft.getX();
-                        float topY = (float) topLeft.getY();
+                        float y = (float) topLeft.getY();
                         float bottomY = (float) btmRight.getY();
 
-                        float y = maxY - bottomY;
+//                        float y = maxY - bottomY;
                         float width = (float) (btmRight.getX() - x);
-                        float height = bottomY - topY;
+                        float height = (float) (btmRight.getY() - topLeft.getY());
 
-                        cellsFound.add(new BoundingBox(x, y, width, height));
+                        BoundingBox bb = new BoundingBox(x,y,width,height);
+                        cellsFound.add(bb);
                         doBreak = true;
                         break outer;
                     }
@@ -516,8 +519,7 @@ public final class BorderedTableExtractor implements TableExtractor {
                 bottom = (float) Math.max(bottom, pt.point.getY());
                 right = (float) Math.max(right, pt.point.getX());
             }
-//            rectangles.add(new PDFRectangle(left, top, right, bottom ));
-            rectangles.add(new BoundingBox(left, bottom, right, top ));
+            rectangles.add(BoundingBox.fromCorners(left, top, right, bottom));
         }
 
         return rectangles;

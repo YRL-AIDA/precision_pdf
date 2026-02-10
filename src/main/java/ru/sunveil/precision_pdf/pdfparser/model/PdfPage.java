@@ -8,6 +8,7 @@ import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import ru.sunveil.precision_pdf.pdfparser.model.core.PdfEntity;
 import ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity;
 
+import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -18,6 +19,7 @@ public class PdfPage implements PdfEntity {
     private double width;
     private double height;
     private int index;
+    private static final float MIN_MARGIN = 5f;
 
     @JsonIgnore
     private PDDocument document;
@@ -33,6 +35,8 @@ public class PdfPage implements PdfEntity {
     private List<Ruling> verticalRulings = new ArrayList<>();
     @JsonIgnore
     private List<Ruling> horizontalRulings = new ArrayList<>();
+    @JsonIgnore
+    private List<Ruling> rulings = new ArrayList<>();
     private List<BoundingBox> cells = new ArrayList<>();
     private List<BoundingBox> possibleTables = new ArrayList<>();
 
@@ -109,5 +113,13 @@ public class PdfPage implements PdfEntity {
     @JsonIgnore
     public Iterator<Ruling> getBorderedTableRulings() {
         return visibleRulings.iterator();
+    }
+
+    public boolean canPrint(Point2D.Float point) {
+        double btm_x = getBoundingBox().getX()   + MIN_MARGIN;
+        double top_y = getBoundingBox().getTop()    + MIN_MARGIN;
+        double top_x = getBoundingBox().getRight()  - MIN_MARGIN;
+        double btm_y = getBoundingBox().getY() - MIN_MARGIN;
+        return btm_x < point.x && point.x < top_x && top_y < point.y && point.y < btm_y;
     }
 }

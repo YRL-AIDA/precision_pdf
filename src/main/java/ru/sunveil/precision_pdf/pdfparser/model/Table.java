@@ -30,7 +30,8 @@ public class Table implements PdfEntity {
     }
 
     public Table(double left, double top, double right, double bottom, TableType type) {
-        BoundingBox b = new BoundingBox((float)left,(float)bottom,(float)right,(float)top);
+//        BoundingBox b = new BoundingBox((float)left,(float)bottom,(float)right,(float)top);
+        BoundingBox b = BoundingBox.fromCorners((float)left,(float)bottom,(float)right,(float)top);
         setBoundingBox(b);
         this.type = type;
         this.order = Integer.MIN_VALUE;

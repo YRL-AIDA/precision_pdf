@@ -1,6 +1,7 @@
 package ru.sunveil.precision_pdf.pdfparser.model.core;
 
 import lombok.Data;
+import org.apache.pdfbox.text.TextPosition;
 
 import java.awt.geom.Point2D;
 import java.util.Comparator;
@@ -375,6 +376,9 @@ public class BoundingBox {
      */
     public static BoundingBox fromCorners(float left, float bottom, float right, float top) {
         return new BoundingBox(left, bottom, right - left, top - bottom);
+    }
+    public static BoundingBox fromTp(TextPosition tp){
+        return new BoundingBox(tp.getX(), tp.getY() - tp.getHeight(), tp.getWidth(), tp.getHeight());
     }
 
     /**
