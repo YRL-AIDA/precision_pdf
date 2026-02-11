@@ -54,6 +54,6 @@ public class TableCell implements PdfEntity {
     public TableCell(BoundingBox bbox, int rowSpan, int colspan){
         setBoundingBox(bbox);
         this.rowSpan = rowSpan;
-
+        this.colSpan = colspan;
     }
 }

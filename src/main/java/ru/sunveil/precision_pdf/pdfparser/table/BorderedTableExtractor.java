@@ -110,11 +110,11 @@ public final class BorderedTableExtractor implements TableExtractor {
         findIntersections(joinedHorizontalRulings, joinedVerticalRulings);
         ArrayList<BoundingBox> cells = (ArrayList<BoundingBox>) findCells();
         page.addCells(cells);
-        for (BoundingBox cell: cells) {
-            if (cell.getWidth() > TableCell.MIN_CELL_WIDTH && cell.getHeight() > TableCell.MIN_CELL_HEIGHT) {
-                page.addCell(cell);
-            }
-        }
+//        for (BoundingBox cell: cells) {
+//            if (cell.getWidth() > TableCell.MIN_CELL_WIDTH && cell.getHeight() > TableCell.MIN_CELL_HEIGHT) {
+//                page.addCell(cell);
+//            }
+//        }
 
         List<BoundingBox> tableAreas = (ArrayList<BoundingBox>) findTableAreas(cells);
 
@@ -141,8 +141,6 @@ public final class BorderedTableExtractor implements TableExtractor {
                 boolean isIntersected = false;
                 for (BoundingBox c1: filteredTableCells) {
                     if (c1.intersects(c)) {
-                        System.out.println(c.getX() + " " + c.getY() + " " + c.getWidth() + " " + c.getHeight());
-                        System.out.println(c1.getX() + " " + c1.getY() + " " + c1.getWidth() + " " + c1.getHeight());
                         c1.add(c);
                         isIntersected = true;
                     }
@@ -163,9 +161,9 @@ public final class BorderedTableExtractor implements TableExtractor {
                 continue;
             }
 
-            for (BoundingBox cell: filteredTableCells) {
-                page.addCell(cell);
-            }
+//            for (BoundingBox cell: filteredTableCells) {
+//                page.addCell(cell);
+//            }
 
             Table table = new Table(area.getX(), area.getTop(), area.getRight(), area.getY(), TableType.UNKNOWN);
 
@@ -179,8 +177,8 @@ public final class BorderedTableExtractor implements TableExtractor {
 
             List<List<TableCell>> rows = new ArrayList<>(numRows);
             for (int i = 0; i < numRows; i++){
-                List<TableCell> row = new ArrayList<>(Collections.nCopies(numCols, null));
-
+//                List<TableCell> row = new ArrayList<>(Collections.nCopies(numCols, null));
+                List<TableCell> row = new ArrayList<>();
                 rows.add(row);
             }
             table.setRows(rows);
@@ -198,8 +196,8 @@ public final class BorderedTableExtractor implements TableExtractor {
                 chunks.add(textChunk);
             }
 
+            int i = 0;
             for (BoundingBox c: filteredTableCells) {
-
                 List<TextEntity> cellBlocks = chunks.stream()
                         .filter(tb -> c.intersects(tb.getBoundingBox()))
                         .collect(Collectors.toList());
@@ -217,7 +215,8 @@ public final class BorderedTableExtractor implements TableExtractor {
                 BoundingBox bbox = new BoundingBox(c.getX(), c.getY(), c.getWidth(), c.getHeight());
                 TableCell cell = new TableCell(bbox, 0, cellBlocks, startColumn, startRow, endColumn, endRow);
 
-                table.addCell(cell, startRow);
+//                t_cells.add(cell);
+//                table.addCell(cell, startRow);
 
             }
             BorderedTableSeparator borderedTableSeparator = new BorderedTableSeparator();

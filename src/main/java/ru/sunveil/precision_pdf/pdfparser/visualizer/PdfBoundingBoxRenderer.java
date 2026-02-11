@@ -13,10 +13,11 @@ import java.util.List;
 
 import ru.sunveil.precision_pdf.pdfparser.model.*;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
+import ru.sunveil.precision_pdf.pdfparser.table.BorderedTableExtractor;
 
 public class PdfBoundingBoxRenderer {
     public enum BoxType {
-        WORDS, LINES, CHUNKS, RULINGS
+        WORDS, LINES, CHUNKS, RULINGS, AREAS
     }
     /**
      * Нарисовать bounding box слов/линий/чанков
@@ -98,6 +99,18 @@ public class PdfBoundingBoxRenderer {
                                 contentStream.addRect(x, y, width, height);
                                 contentStream.stroke();
                             }
+                        }
+                    }
+
+                    if (boxType == BoxType.AREAS){
+                        contentStream.setStrokingColor(Color.red);
+                        contentStream.setLineWidth(0.3f);
+                        for (Table table : pdfPage.getTables()){
+                            if (table == null)
+                                return;
+                            BoundingBox bb = table.getBoundingBox();
+                            contentStream.addRect(bb.getX(),bb.getY(),bb.getWidth(),bb.getHeight());
+                            contentStream.stroke();
                         }
                     }
                 }
