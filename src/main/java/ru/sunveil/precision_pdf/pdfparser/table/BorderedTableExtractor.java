@@ -152,10 +152,10 @@ public final class BorderedTableExtractor implements TableExtractor {
             for (BoundingBox c: filteredTableCells) {
                 horizontal_range = new Range(c.getX(), c.getRight());
                 join(horizontal, horizontal_range);
-                vertical_range = new Range(c.getTop(), c.getY());
+                vertical_range = new Range(c.getY(), c.getTop());
                 join(vertical, vertical_range);
             }
-            
+
             if (filteredTableCells.size() < Factors.MIN_CELLS_COUNT_FACTOR || horizontal.size() < 2) {
                 page.addPossibleTableArea(area);
                 continue;
@@ -216,7 +216,7 @@ public final class BorderedTableExtractor implements TableExtractor {
                 TableCell cell = new TableCell(bbox, 0, cellBlocks, startColumn, startRow, endColumn, endRow);
 
 //                t_cells.add(cell);
-//                table.addCell(cell, startRow);
+                table.addCell(cell, startRow);
 
             }
             BorderedTableSeparator borderedTableSeparator = new BorderedTableSeparator();
@@ -260,7 +260,7 @@ public final class BorderedTableExtractor implements TableExtractor {
     }
 
     private int getStartRow(BoundingBox textChunk, ArrayList<Range> vertical) {
-        Range chunkRange = new Range(textChunk.getTop(), textChunk.getY());
+        Range chunkRange = new Range(textChunk.getY(), textChunk.getTop());
         int minRowIndex = Integer.MAX_VALUE;;
         for (int i = 0; i < vertical.size(); i++) {
             if (chunkRange.isIntersectionRange(vertical.get(i))) {
@@ -273,7 +273,7 @@ public final class BorderedTableExtractor implements TableExtractor {
     }
 
     private int getEndRow(BoundingBox textChunk, ArrayList<Range> vertical) {
-        Range chunkRange = new Range(textChunk.getTop(), textChunk.getY());
+        Range chunkRange = new Range(textChunk.getY(), textChunk.getTop());
         int maxRowIndex = Integer.MIN_VALUE;
         for (int i = 0; i < vertical.size(); i++) {
             if (chunkRange.isIntersectionRange(vertical.get(i))) {

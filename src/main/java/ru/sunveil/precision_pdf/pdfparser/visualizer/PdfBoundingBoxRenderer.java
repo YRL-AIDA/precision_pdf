@@ -17,7 +17,7 @@ import ru.sunveil.precision_pdf.pdfparser.table.BorderedTableExtractor;
 
 public class PdfBoundingBoxRenderer {
     public enum BoxType {
-        WORDS, LINES, CHUNKS, RULINGS, AREAS
+        WORDS, LINES, CHUNKS, RULINGS, AREAS, TABLES
     }
     /**
      * Нарисовать bounding box слов/линий/чанков
@@ -109,8 +109,44 @@ public class PdfBoundingBoxRenderer {
                             if (table == null)
                                 return;
                             BoundingBox bb = table.getBoundingBox();
-                            contentStream.addRect(bb.getX(),bb.getY(),bb.getWidth(),bb.getHeight());
+
+                            float pageHeight = (float) pdfPage.getHeight();
+
+                            float pdfY = pageHeight - bb.getY() - bb.getHeight();
+
+                            contentStream.addRect(bb.getX(), pdfY, bb.getWidth(), bb.getHeight());
                             contentStream.stroke();
+                        }
+                    }
+
+                    if (boxType == BoxType.TABLES){
+                        contentStream.setStrokingColor(Color.red);
+                        contentStream.setLineWidth(0.3f);
+                        for (Table table : pdfPage.getTables()){
+                            if (table == null)
+                                return;
+                            BoundingBox bb = table.getBoundingBox();
+
+                            float pageHeight = (float) pdfPage.getHeight();
+
+                            float pdfY = pageHeight - bb.getY() - bb.getHeight();
+
+                            contentStream.addRect(bb.getX(), pdfY, bb.getWidth(), bb.getHeight());
+                            contentStream.stroke();
+                            List<List<TableCell>> rows = table.getRows();
+//                            if (rows == null) continue;
+                            for (List<TableCell> row : rows) {
+                                //                                if (row == null) continue;
+                                for (TableCell cell : row) {
+                                    BoundingBox cellBb = cell.getBoundingBox();
+                                    float cellX = cellBb.getX();
+                                    float cellY = pageHeight - cellBb.getY() - cellBb.getHeight();
+                                    float cellWidth = cellBb.getWidth();
+                                    float cellHeight = cellBb.getHeight();
+                                    contentStream.addRect(cellX, cellY, cellWidth, cellHeight);
+                                    contentStream.stroke();
+                                }
+                            }
                         }
                     }
                 }

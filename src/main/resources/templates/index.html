@@ -655,6 +655,7 @@
                 <div class="viz-tab" data-viz-tab="chunks">Чанки</div>
                 <div class="viz-tab" data-viz-tab="rulings">Рулинги</div>
                 <div class="viz-tab" data-viz-tab="areas">области таблиц</div>
+                <div class="viz-tab" data-viz-tab="tables">таблицы</div>
             </div>
 
             <div class="pdf-container">
@@ -673,6 +674,7 @@
                 <iframe class="pdf-viewer" id="pdfViewerChunks" data-type="chunks"></iframe>
                 <iframe class="pdf-viewer" id="pdfViewerRulings" data-type="rulings"></iframe>
                 <iframe class="pdf-viewer" id="pdfViewerAreas" data-type="areas"></iframe>
+                <iframe class="pdf-viewer" id="pdfViewerTables" data-type="tables"></iframe>
             </div>
 
             <div class="viz-controls">
@@ -786,7 +788,8 @@
         lines: { loaded: false, url: null, element: null },
         chunks: { loaded: false, url: null, element: null },
         rulings: { loaded: false, url: null, element: null},
-        areas: {loaded: false, url: null, element: null}
+        areas: {loaded: false, url: null, element: null},
+        tables: {loaded: false, url: null, element: null}
     };
 
     let currentVizType = 'words';
@@ -814,6 +817,7 @@
         visualizationCache.chunks.element = document.getElementById('pdfViewerChunks');
         visualizationCache.rulings.element = document.getElementById('pdfViewerRulings');
         visualizationCache.areas.element = document.getElementById('pdfViewerAreas');
+        visualizationCache.tables.element = document.getElementById('pdfViewerTables');
 
         // Элементы вкладок
         const tabs = document.querySelectorAll('.tab');
@@ -834,7 +838,7 @@
             noVizMessage.classList.remove('active');
 
 
-            const types = ['words', 'lines', 'chunks', 'rulings', 'areas'];
+            const types = ['words', 'lines', 'chunks', 'rulings', 'areas', 'tables'];
             const loadPromises = [];
 
             for (const type of types) {

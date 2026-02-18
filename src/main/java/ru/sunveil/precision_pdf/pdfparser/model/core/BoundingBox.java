@@ -160,10 +160,10 @@ public class BoundingBox {
     public boolean intersects(BoundingBox other) {
         if (other == null) return false;
 
-        return !(other.getRight() < x ||
-                other.x > getRight() ||
-                other.getTop() < y ||
-                other.y > getTop());
+        return !(other.getRight() <= x ||
+                other.x >= getRight() ||
+                other.getTop() <= y ||
+                other.y >= getTop());
     }
 
     /**
