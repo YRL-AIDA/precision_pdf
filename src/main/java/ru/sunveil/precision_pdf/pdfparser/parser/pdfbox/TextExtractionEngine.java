@@ -190,7 +190,7 @@ public class TextExtractionEngine extends PDFTextStripper {
                 continue;
             }
 
-            if (currentWordText.length() == 0) {
+            if (currentWordText.isEmpty()) {
                 currentWordText.append(charText);
                 currentWordPositions.add(tp);
                 updateWordBoundingBoxInitial(tp);
@@ -292,6 +292,19 @@ public class TextExtractionEngine extends PDFTextStripper {
         if (currentWordText.length() > 0 && !currentWordPositions.isEmpty()) {
             Word word = createWord(currentWordText.toString(), currentWordPositions, order);
             cachedWords.add(word);
+
+            if (!currentLineWords.isEmpty()) {
+                Word lastWordInLine = currentLineWords.get(currentLineWords.size() - 1);
+                List<Ruling> rulings = pageRulings.get(currentPageNumber);
+
+                if (Objects.equals(lastWordInLine.getText(), "№")){
+                    int x=1;
+                }
+                if (isSeparatedByVerticalRuling(lastWordInLine.getBoundingBox(), word.getBoundingBox(), rulings)) {
+                    finalizeCurrentLine();
+                }
+            }
+
             currentLineWords.add(word);
 
             currentWordText.setLength(0);
@@ -757,6 +770,58 @@ public class TextExtractionEngine extends PDFTextStripper {
     public List<Word> extractWords(PDDocument document) throws IOException {
         extractAllInOnePass(document);
         return new ArrayList<>(cachedWords);
+    }
+
+    private boolean isSeparatedByVerticalRuling(BoundingBox bbox1, BoundingBox bbox2, List<Ruling> rulings) {
+        if (rulings == null || rulings.isEmpty()) {
+            return false;
+        }
+
+        float leftBoxRight = Math.min(bbox1.getRight(), bbox2.getRight());
+        float rightBoxLeft = Math.max(bbox1.getX(), bbox2.getX());
+
+        if (leftBoxRight >= rightBoxLeft) {
+            return false;
+        }
+
+        float bbox1Top = bbox1.getTop();
+        float bbox1Bottom = bbox1.getY();
+        float bbox2Top = bbox2.getTop();
+        float bbox2Bottom = bbox2.getY();
+
+        float overlapTop = Math.max(bbox1Bottom, bbox2Bottom);
+        float overlapBottom = Math.min(bbox1Top, bbox2Top);
+
+        if (overlapTop >= overlapBottom) {
+            return false;
+        }
+
+        for (Ruling ruling : rulings) {
+            if (!ruling.isVertical()) {
+                continue;
+            }
+            float rulingX = (float) ruling.getX1();
+            float rulingY1 = (float) ruling.getY1();
+            float rulingY2 = (float) ruling.getY2();
+//            float rulingY1 = (float) ruling.getY1();
+//            float rulingY2 = (float) ruling.getY2();
+
+            float rulingTop = Math.max(rulingY1, rulingY2);
+            float rulingBottom = Math.min(rulingY1, rulingY2);
+
+            boolean horizontallyBetween = (rulingX > leftBoxRight && rulingX < rightBoxLeft);
+            if (!horizontallyBetween) {
+                continue;
+            }
+
+            boolean verticallyOverlaps = (rulingBottom < overlapBottom && rulingTop > overlapTop);
+
+            if (verticallyOverlaps) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 

@@ -92,6 +92,12 @@ public class PdfBoundingBoxRenderer {
                         for (Ruling ruling : pdfPage.getVisibleRulings()) {
                             if (ruling != null) {
 //                                Rectangle2D rec = ruling.getRect(pageHeight);
+                                Double d = ruling.getX1();
+                                Double d2 = ruling.getY1();
+                                Double d3 = ruling.getY2();
+
+                                if (!(d.equals(375.62244) && d2.equals(438.20312) && d3.equals(767.2286)))
+                                    continue;
                                 Rectangle rec = ruling.getBounds();
                                 float x = (float) rec.getX();
                                 float y = (float) rec.getY();
