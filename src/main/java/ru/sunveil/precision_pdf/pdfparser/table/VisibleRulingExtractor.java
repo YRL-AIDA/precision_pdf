@@ -116,13 +116,16 @@ public class VisibleRulingExtractor {
                 visibleRulings.addAll(verticalRulings);
             }
             BoundingBox bbox = page.getBoundingBox();
+            for (Ruling ruling : visibleRulings){
+                double y1 = page.getHeight() - ruling.getY1();
+                double y2 = page.getHeight() - ruling.getY2();
+                ruling.setLine(ruling.x1, y2, ruling.x2, y1);
+            }
 
-//            Rectangle2D rec = Config.bboxes.get(page.getIndex());
             if (bbox != null) {
                 for (Ruling r: visibleRulings){
                     Rectangle2D rec = r.getBounds();
                     BoundingBox rulingbbox = new BoundingBox((float) rec.getX(), (float) rec.getY(), (float) rec.getWidth(), (float) rec.getHeight());
-//                    newbbox = r.getbou
                     if (bbox.contains(rulingbbox)) {
                         page.addVisibleRuling(r);
                     }

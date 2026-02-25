@@ -91,7 +91,8 @@ public class PdfBoundingBoxRenderer {
                         float pageHeight = pdfPage.getBoundingBox().getHeight();
                         for (Ruling ruling : pdfPage.getVisibleRulings()) {
                             if (ruling != null) {
-                                Rectangle2D rec = ruling.getRect(pageHeight);
+//                                Rectangle2D rec = ruling.getRect(pageHeight);
+                                Rectangle rec = ruling.getBounds();
                                 float x = (float) rec.getX();
                                 float y = (float) rec.getY();
                                 float width = (float) rec.getWidth();
@@ -112,9 +113,9 @@ public class PdfBoundingBoxRenderer {
 
                             float pageHeight = (float) pdfPage.getHeight();
 
-                            float pdfY = pageHeight - bb.getY() - bb.getHeight();
+//                            float pdfY = pageHeight - bb.getY() - bb.getHeight();
 
-                            contentStream.addRect(bb.getX(), pdfY, bb.getWidth(), bb.getHeight());
+                            contentStream.addRect(bb.getX(), bb.getY(), bb.getWidth(), bb.getHeight());
                             contentStream.stroke();
                         }
                     }
@@ -129,9 +130,9 @@ public class PdfBoundingBoxRenderer {
 
                             float pageHeight = (float) pdfPage.getHeight();
 
-                            float pdfY = pageHeight - bb.getY() - bb.getHeight();
+//                            float pdfY = pageHeight - bb.getY() - bb.getHeight();
 
-                            contentStream.addRect(bb.getX(), pdfY, bb.getWidth(), bb.getHeight());
+                            contentStream.addRect(bb.getX(), bb.getY(), bb.getWidth(), bb.getHeight());
                             contentStream.stroke();
                             List<List<TableCell>> rows = table.getRows();
 //                            if (rows == null) continue;
@@ -143,7 +144,7 @@ public class PdfBoundingBoxRenderer {
                                     float cellY = pageHeight - cellBb.getY() - cellBb.getHeight();
                                     float cellWidth = cellBb.getWidth();
                                     float cellHeight = cellBb.getHeight();
-                                    contentStream.addRect(cellX, cellY, cellWidth, cellHeight);
+                                    contentStream.addRect(cellX, cellBb.getY(), cellWidth, cellHeight);
                                     contentStream.stroke();
                                 }
                             }
