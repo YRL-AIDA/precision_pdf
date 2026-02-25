@@ -135,6 +135,68 @@ public class VisibleRulingExtractor {
         }
     }
 
+    public List<Ruling> extractVisibleRulingsForPage(PDPage pdPage) throws IOException {
+
+        List<Ruling> resultRulings = new ArrayList<>();
+
+        List<Object> newTokens = createTokensWithoutText(pdPage);
+        PDStream newContents = new PDStream(pdDocument);
+        writeTokensToStream(newContents, newTokens);
+
+        PDPage tempPage = new PDPage(pdPage.getMediaBox());
+        tempPage.setResources(pdPage.getResources());
+        tempPage.setContents(newContents);
+
+        BufferedImage image = Utils.convertPageToImage(tempPage, 144, ImageType.GRAY);
+        List<Ruling> horizontalRulings = getHorizontalRulings(image);
+        List<Ruling> verticalRulings = getVerticalRulings(image);
+
+        List<Ruling> allEdges = new ArrayList<>();
+        allEdges.addAll(horizontalRulings);
+        allEdges.addAll(verticalRulings);
+
+        if (allEdges.size() > 0) {
+            GeometryUtils.snapPoints(allEdges, GeometryUtils.POINT_SNAP_DISTANCE_THRESHOLD, GeometryUtils.POINT_SNAP_DISTANCE_THRESHOLD);
+
+            for (List<Ruling> rulings : Arrays.asList(horizontalRulings, verticalRulings)) {
+                for (Iterator<Ruling> iterator = rulings.iterator(); iterator.hasNext(); ) {
+                    Ruling ruling = iterator.next();
+
+                    ruling.normalize();
+                    if (ruling.oblique()) {
+                        iterator.remove();
+                    }
+                }
+            }
+
+            horizontalRulings = GeometryUtils.collapseOrientedRulings(horizontalRulings, 5);
+            verticalRulings = GeometryUtils.collapseOrientedRulings(verticalRulings, 5);
+
+            if (horizontalRulings != null) {
+                for (Ruling ruling: horizontalRulings) {
+                    float x1 = ruling.x1 / 2;
+                    float x2 = ruling.x2 / 2;
+                    float y1 = ruling.y1 / 2;
+                    float y2 = ruling.y2 / 2;
+                    ruling.setLine(x1, y1, x2, y2);
+                }
+                resultRulings.addAll(horizontalRulings);
+            }
+            if (verticalRulings != null) {
+                for (Ruling ruling: verticalRulings) {
+                    float x1 = ruling.x1 / 2;
+                    float x2 = ruling.x2 / 2;
+                    float y1 = ruling.y1 / 2;
+                    float y2 = ruling.y2 / 2;
+                    ruling.setLine(x1, y1, x2, y2);
+                }
+                resultRulings.addAll(verticalRulings);
+            }
+        }
+
+        return resultRulings;
+    }
+
     private void removeAllImages(PDResources resources) throws IOException {
         for (COSName objectName: resources.getXObjectNames()) {
             PDXObject xObject = resources.getXObject(objectName);

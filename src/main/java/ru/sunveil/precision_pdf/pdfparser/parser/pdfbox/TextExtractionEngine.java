@@ -17,6 +17,9 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
+import ru.sunveil.precision_pdf.pdfparser.table.VisibleRulingExtractor;
+import ru.sunveil.precision_pdf.pdfparser.model.Ruling;
+import org.apache.pdfbox.pdmodel.PDPage;
 
 /**
  * Engine for extracting text content from PDF documents using PDFBox library.
@@ -32,6 +35,9 @@ public class TextExtractionEngine extends PDFTextStripper {
     private int currentPageNumber;
     private float pageHeight;
     private int order;
+
+    // precomputed visible rulings by page (pageNumber -> rulings)
+    private Map<Integer, List<Ruling>> pageRulings = new HashMap<>();
 
     private boolean newLineStarted;
     private float lineStartX, lineStartY;
@@ -100,6 +106,16 @@ public class TextExtractionEngine extends PDFTextStripper {
             setStartPage(currentPageNumber);
             setEndPage(currentPageNumber);
 
+            try {
+                VisibleRulingExtractor vre = new VisibleRulingExtractor(document);
+                List<Ruling> rulings = vre.extractVisibleRulingsForPage(page);
+                if (rulings != null) {
+                    pageRulings.put(currentPageNumber, rulings);
+                }
+            } catch (Exception e) {
+                // ignore rulings extraction errors to avoid breaking text extraction
+            }
+
             newLineStarted = false;
             lineText.setLength(0);
             currentLineWords.clear();
@@ -127,6 +143,10 @@ public class TextExtractionEngine extends PDFTextStripper {
     protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
         if (StringUtils.isBlank(text) || textPositions.isEmpty()) {
             return;
+        }
+
+        for (Object rulings : pageRulings.values()){
+
         }
 
         order++;
@@ -742,6 +762,13 @@ public class TextExtractionEngine extends PDFTextStripper {
 
     public void clear() {
         resetExtractionState();
+    }
+
+    /**
+     * Return visible rulings detected for given page (may be empty).
+     */
+    public List<Ruling> getVisibleRulingsForPage(int pageNumber) {
+        return pageRulings.getOrDefault(pageNumber, Collections.emptyList());
     }
 
 
