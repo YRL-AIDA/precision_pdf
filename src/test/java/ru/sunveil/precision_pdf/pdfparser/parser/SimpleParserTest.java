@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import ru.sunveil.precision_pdf.pdfparser.config.ExtractionConfig;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfDocument;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
+import ru.sunveil.precision_pdf.pdfparser.model.Ruling;
 import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
 
 import java.io.File;
@@ -72,26 +73,29 @@ public class SimpleParserTest {
     public void testRulingsAndGeneralContent() {
         PdfPage page = document.getPages().get(0);
 
-        // text content sanity
         List<TextLine> lines = page.getTextLines();
         assertTrue(lines.size() > 30, "expected many lines on the page");
         assertTrue(lines.stream().anyMatch(l -> l.getText().contains("Задачи на 2026 год")),
                 "header text should appear on the first page");
 
-        // rulings should have been extracted
-        List<ru.sunveil.precision_pdf.pdfparser.model.Ruling> rulings = page.getVisibleRulings();
+        List<Ruling> rulings = page.getVisibleRulings();
         assertNotNull(rulings, "visible rulings list must not be null");
         assertFalse(rulings.isEmpty(), "there should be some visible rulings on the page");
 
-        long verticalCount = rulings.stream().filter(ru.sunveil.precision_pdf.pdfparser.model.Ruling::isVertical).count();
+        long verticalCount = rulings.stream().filter(Ruling::isVertical).count();
+        long horizontalCount = rulings.size() - verticalCount;
         assertTrue(verticalCount >= 3, "expect at least three vertical rulings");
+        assertTrue(horizontalCount >= 5, "expect several horizontal rulings");
 
         System.out.println("--- visible rulings ---");
-        for (ru.sunveil.precision_pdf.pdfparser.model.Ruling r : rulings) {
-            System.out.printf("ruling %s %s\n", r.isVertical() ? "VERT" : "HORIZ", r);
+        for (Ruling r : rulings) {
+            if (r.isVertical()) {
+                System.out.printf("VERT x=%.2f y1=%.2f y2=%.2f\n", r.getLeft(), r.getTop(), r.getBottom());
+            } else {
+                System.out.printf("HORIZ y=%.2f x1=%.2f x2=%.2f\n", r.getTop(), r.getLeft(), r.getRight());
+            }
         }
 
-        // check that at least one vertical ruling lies between № and задача cells
         TextLine numLine = lines.stream()
                 .filter(l -> l.getText().trim().equals("№"))
                 .findFirst().orElseThrow();
@@ -101,9 +105,9 @@ public class SimpleParserTest {
         float leftBoundary = numLine.getBoundingBox().getX();
         float rightBoundary = taskLine.getBoundingBox().getX();
         boolean foundBoundary = rulings.stream()
-                .filter(ru.sunveil.precision_pdf.pdfparser.model.Ruling::isVertical)
-                .anyMatch(r -> r.getLeft() >= leftBoundary - 1 && r.getLeft() <= rightBoundary + 1);
+                .filter(Ruling::isVertical)
+                .anyMatch(r -> Math.abs(r.getLeft() - numLine.getBoundingBox().getRight()) < 10);
         assertTrue(foundBoundary,
-                "should have a vertical ruling between № and Задача cells (x in [" + leftBoundary + "," + rightBoundary + "])");
+                "should have a vertical ruling near the right edge of № cell (within 10pt)");
     }
 }
