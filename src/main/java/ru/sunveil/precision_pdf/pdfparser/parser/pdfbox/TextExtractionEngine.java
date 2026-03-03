@@ -150,16 +150,15 @@ public class TextExtractionEngine extends PDFTextStripper {
             lineStartY = convertToTopLeftY(firstTp.getYDirAdj() - firstTp.getHeightDir());
         }
 
-        lineText.append(text);
 
         PdfTextChunk chunk = createPdfTextChunk(text, textPositions);
         cachedChunks.add(chunk);
 
-        extractWordsFromTextPositions(textPositions);
-
         TextPosition lastTp = textPositions.get(textPositions.size() - 1);
         lineEndX = lastTp.getXDirAdj() + lastTp.getWidthDirAdj();
         lineEndY = convertToTopLeftY(lastTp.getYDirAdj());
+
+        extractWordsFromTextPositions(textPositions);
     }
 
     /**
@@ -283,25 +282,15 @@ public class TextExtractionEngine extends PDFTextStripper {
         if (currentWordText.length() > 0 && !currentWordPositions.isEmpty()) {
             Word word = createWord(currentWordText.toString(), currentWordPositions, order);
             cachedWords.add(word);
-
-            if (!currentLineWords.isEmpty()) {
-                Word lastWordInLine = currentLineWords.get(currentLineWords.size() - 1);
-                List<Ruling> rulings = pageRulings.get(currentPageNumber);
-
-                if (Objects.equals(lastWordInLine.getText(), "№")){
-                    int x=1;
-                }
-                if (isSeparatedByVerticalRuling(lastWordInLine.getBoundingBox(), word.getBoundingBox(), rulings)) {
-                    System.out.println(lastWordInLine.getText() + " " + word.getText());
-                    finalizeCurrentLine();
-                }
-            }
-
             currentLineWords.add(word);
-
+            if (newLineStarted) {
+                if (lineText.length() > 0) {
+                    lineText.append(' ');
+                }
+                lineText.append(word.getText());
+            }
             currentWordText.setLength(0);
             currentWordPositions.clear();
-
             wordStartX = wordStartY = wordEndX = wordEndY = 0f;
         }
     }
@@ -310,14 +299,74 @@ public class TextExtractionEngine extends PDFTextStripper {
      * Finalize current line and add to lists
      */
     private void finalizeCurrentLine() {
-        if (newLineStarted && !currentLineWords.isEmpty()) {
-            TextLine line = createTextLine();
-            cachedLines.add(line);
-
+        if (!newLineStarted || currentLineWords.isEmpty()) {
             newLineStarted = false;
             lineText.setLength(0);
             currentLineWords.clear();
+            return;
         }
+        List<Word> remaining = new ArrayList<>(currentLineWords);
+        while (!remaining.isEmpty()) {
+            int splitIndex = -1;
+            for (int i = 1; i < remaining.size(); i++) {
+                Word prev = remaining.get(i - 1);
+                Word curr = remaining.get(i);
+                List<Ruling> rulings = pageRulings.get(currentPageNumber);
+                if (isSeparatedByVerticalRuling(prev.getBoundingBox(), curr.getBoundingBox(), rulings)) {
+                    splitIndex = i;
+                    break;
+                }
+                float lastY = prev.getBoundingBox().getY();
+                float thisY = curr.getBoundingBox().getY();
+                float heightThreshold = prev.getBoundingBox().getHeight() * 0.6f;
+                if (Math.abs(thisY - lastY) > heightThreshold) {
+                    splitIndex = i;
+                    break;
+                }
+            }
+            if (splitIndex == -1) {
+                createAndStoreLine(remaining);
+                break;
+            } else {
+                List<Word> first = new ArrayList<>(remaining.subList(0, splitIndex));
+                createAndStoreLine(first);
+                remaining = new ArrayList<>(remaining.subList(splitIndex, remaining.size()));
+            }
+        }
+        newLineStarted = false;
+        lineText.setLength(0);
+        currentLineWords.clear();
+    }
+
+    private void createAndStoreLine(List<Word> words) {
+        if (words.isEmpty()) return;
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        StringBuilder txt = new StringBuilder();
+        for (Word w : words) {
+            BoundingBox b = w.getBoundingBox();
+            minX = Math.min(minX, b.getX());
+            minY = Math.min(minY, b.getY());
+            maxX = Math.max(maxX, b.getX() + b.getWidth());
+            maxY = Math.max(maxY, b.getY() + b.getHeight());
+            if (txt.length() > 0) txt.append(' ');
+            txt.append(w.getText());
+        }
+        float width = maxX - minX;
+        float height = maxY - minY;
+        BoundingBox bbox = new BoundingBox(minX, minY, width, height);
+        TextLine line = new TextLine();
+        line.setPageNumber(currentPageNumber);
+        line.setBoundingBox(bbox);
+        line.setText(txt.toString());
+        line.setWords(new ArrayList<>(words));
+        line.setLineHeight(calculateLineHeight(words));
+        line.setOrder(order);
+        Word first = words.get(0);
+        line.setFont(first.getFont());
+        line.setColor(first.getColor());
+        line.setSpaceWidth(first.getSpaceWidth());
+        cachedLines.add(line);
     }
 
     /**
@@ -398,10 +447,10 @@ public class TextExtractionEngine extends PDFTextStripper {
         float left = lineStartX;
         float width = lineEndX - lineStartX;
 
-        // If width or height are zero, try to compute from words
-        if (width <= 0 || height <= 0) {
-            float minLeft = Float.MAX_VALUE, maxRight = Float.MIN_VALUE;
-            float minTop = Float.MAX_VALUE, maxBottom = Float.MIN_VALUE;
+        // Prefer computing bbox from words when available
+        if (!currentLineWords.isEmpty()) {
+            float minLeft = Float.MAX_VALUE, maxRight = -Float.MAX_VALUE;
+            float minTop = Float.MAX_VALUE, maxBottom = -Float.MAX_VALUE;
             for (Word w : currentLineWords) {
                 BoundingBox b = w.getBoundingBox();
                 minLeft = Math.min(minLeft, b.getX());
@@ -411,11 +460,34 @@ public class TextExtractionEngine extends PDFTextStripper {
             }
             if (minLeft != Float.MAX_VALUE) {
                 left = Math.min(left, minLeft);
-                width = (maxRight - left);
+                float right = Math.max(lineEndX, maxRight);
+                width = right - left;
             }
             if (minTop != Float.MAX_VALUE) {
                 minY = Math.min(minY, minTop);
-                height = Math.max(height, maxBottom - minY);
+                float bottom = Math.max(lineEndY, maxBottom);
+                height = bottom - minY;
+            }
+        } else {
+            // act like before
+            if (width <= 0 || height <= 0) {
+                float minLeft = Float.MAX_VALUE, maxRight = Float.MIN_VALUE;
+                float minTop = Float.MAX_VALUE, maxBottom = Float.MIN_VALUE;
+                for (Word w : currentLineWords) {
+                    BoundingBox b = w.getBoundingBox();
+                    minLeft = Math.min(minLeft, b.getX());
+                    maxRight = Math.max(maxRight, b.getX() + b.getWidth());
+                    minTop = Math.min(minTop, b.getY());
+                    maxBottom = Math.max(maxBottom, b.getY() + b.getHeight());
+                }
+                if (minLeft != Float.MAX_VALUE) {
+                    left = Math.min(left, minLeft);
+                    width = (maxRight - left);
+                }
+                if (minTop != Float.MAX_VALUE) {
+                    minY = Math.min(minY, minTop);
+                    height = Math.max(height, maxBottom - minY);
+                }
             }
         }
 
@@ -769,10 +841,12 @@ public class TextExtractionEngine extends PDFTextStripper {
             return false;
         }
 
+        // tolerance for floating point number
+        final float tolerance = 0.5f;
         float leftBoxRight = Math.min(bbox1.getRight(), bbox2.getRight());
         float rightBoxLeft = Math.max(bbox1.getX(), bbox2.getX());
 
-        if (leftBoxRight >= rightBoxLeft) {
+        if (leftBoxRight + tolerance >= rightBoxLeft) {
             return false;
         }
 
@@ -795,18 +869,16 @@ public class TextExtractionEngine extends PDFTextStripper {
             float rulingX = (float) ruling.getX1();
             float rulingY1 = (float) ruling.getY1();
             float rulingY2 = (float) ruling.getY2();
-//            float rulingY1 = (float) ruling.getY1();
-//            float rulingY2 = (float) ruling.getY2();
 
             float rulingTop = Math.max(rulingY1, rulingY2);
             float rulingBottom = Math.min(rulingY1, rulingY2);
 
-            boolean horizontallyBetween = (rulingX > leftBoxRight && rulingX < rightBoxLeft);
+            boolean horizontallyBetween = (rulingX + tolerance >= leftBoxRight && rulingX - tolerance <= rightBoxLeft);
             if (!horizontallyBetween) {
                 continue;
             }
 
-            boolean verticallyOverlaps = (rulingBottom < overlapBottom && rulingTop > overlapTop);
+            boolean verticallyOverlaps = (rulingBottom <= overlapBottom + tolerance && rulingTop >= overlapTop - tolerance);
 
             if (verticallyOverlaps) {
                 return true;
