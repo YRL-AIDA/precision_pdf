@@ -83,7 +83,13 @@ public class SimpleParser extends AbstractPdfBoxParser {
             pdfDocument.setMetadata(extractMetadata(document));
         }
 
-        pdfDocument.setPages(extractPages(document, textResult));
+        if (extractionConfig.isExtractText() && textResult == null) {
+            textResult = extractTextAllTextEntities(document);
+        }
+        List<PdfPage> pages = extractPages(document, textResult);
+
+        pdfDocument.setPages(pages);
+
         pdfDocument.extractLines();
         extractTablesFromDocument(pdfDocument);
         return pdfDocument;

@@ -95,6 +95,7 @@ public class TextExtractionEngine extends PDFTextStripper {
         }
 
         resetExtractionState();
+        precomputePageRulings(document);
 
         int pageCount = document.getNumberOfPages();
         for (int i = 0; i < pageCount; i++) {
@@ -105,16 +106,6 @@ public class TextExtractionEngine extends PDFTextStripper {
             order = -1;
             setStartPage(currentPageNumber);
             setEndPage(currentPageNumber);
-
-            try {
-                VisibleRulingExtractor vre = new VisibleRulingExtractor(document);
-                List<Ruling> rulings = vre.extractVisibleRulingsForPage(page);
-                if (rulings != null) {
-                    pageRulings.put(currentPageNumber, rulings);
-                }
-            } catch (Exception e) {
-                // ignore rulings extraction errors to avoid breaking text extraction
-            }
 
             newLineStarted = false;
             lineText.setLength(0);
@@ -301,6 +292,7 @@ public class TextExtractionEngine extends PDFTextStripper {
                     int x=1;
                 }
                 if (isSeparatedByVerticalRuling(lastWordInLine.getBoundingBox(), word.getBoundingBox(), rulings)) {
+                    System.out.println(lastWordInLine.getText() + " " + word.getText());
                     finalizeCurrentLine();
                 }
             }
@@ -847,5 +839,22 @@ public class TextExtractionEngine extends PDFTextStripper {
 
     public int getWordCount() {
         return cachedWords.size();
+    }
+
+    private void precomputePageRulings(PDDocument document) throws IOException {
+        pageRulings.clear();
+        VisibleRulingExtractor vre = new VisibleRulingExtractor(document);
+        int pageCount = document.getNumberOfPages();
+        for (int i = 0; i < pageCount; i++) {
+            PDPage pdPage = document.getPage(i);
+            try {
+                List<Ruling> rulings = vre.extractVisibleRulings(pdPage);
+                if (rulings != null) {
+                    pageRulings.put(i + 1, new ArrayList<>(rulings));
+                }
+            } catch (Exception e) {
+                // ignore per-page rulings errors
+            }
+        }
     }
 }
