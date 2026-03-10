@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import lombok.Data;
 import ru.sunveil.precision_pdf.pdfparser.model.core.*;
-import ru.sunveil.precision_pdf.pdfparser.table.Row;
 import ru.sunveil.precision_pdf.pdfparser.table.TableType;
 import ru.sunveil.precision_pdf.pdfparser.table.bordered.Range;
 

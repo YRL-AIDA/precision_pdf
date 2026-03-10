@@ -188,32 +188,29 @@ public final class BorderedTableExtractor implements TableExtractor {
             table.setHorizontal(horizontal);
             table.setVertical(vertical);
 
-            ArrayList<TextEntity> chunks = new ArrayList<>();
-            Iterator<TextEntity> blocksIterator = page.getBlocks();
-
-            while (blocksIterator.hasNext()) {
-                TextEntity textChunk = blocksIterator.next();
-                chunks.add(textChunk);
-            }
+            ArrayList<TextEntity> chunks = new ArrayList<>(page.getWords());
 
             int i = 0;
             for (BoundingBox c: filteredTableCells) {
                 List<TextEntity> cellBlocks = chunks.stream()
                         .filter(tb -> c.intersects(tb.getBoundingBox()))
+                        .sorted(Comparator.comparing((TextEntity tb) -> tb.getBoundingBox().getY()).reversed()
+                                .thenComparing(tb -> tb.getBoundingBox().getX()))
                         .collect(Collectors.toList());
 
                 int startColumn = getStartColumn(c, horizontal);
                 int endColumn = getEndColumn(c, horizontal);
                 int startRow = getStartRow(c, vertical);
                 int endRow = getEndRow(c, vertical);
-
-                int rowSpan = endRow - startRow;
-                int colSpan = endColumn - startColumn;
+                int rowSpan = endRow - startRow + 1;
+                int colSpan = endColumn - startColumn + 1;
 
 
 
                 BoundingBox bbox = new BoundingBox(c.getX(), c.getY(), c.getWidth(), c.getHeight());
-                TableCell cell = new TableCell(bbox, 0, cellBlocks, startColumn, startRow, endColumn, endRow);
+                TableCell cell = new TableCell(bbox, rowSpan, colSpan, cellBlocks);
+                cell.setRow(startRow);
+                cell.setColumn(startColumn);
 
 //                t_cells.add(cell);
                 table.addCell(cell, startRow);

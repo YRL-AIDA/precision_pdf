@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import lombok.Data;
 import ru.sunveil.precision_pdf.pdfparser.model.core.*;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Data
 @JsonIgnoreType
@@ -21,39 +23,21 @@ public class TableCell implements PdfEntity {
     private List<TextEntity> contentBlocks;
     private int order;
     private int invisible = 0;
-    private int cl; // Left column index
-    private int rt; // Top row index
-    private int cr; // Right column index
-    private int rb; // Bottom row index
 
     @Override
     public String getType() {
         return "TABLE_CELL";
     }
 
-    public TableCell(BoundingBox bbox, int invisible, List<TextEntity> contentBlocks, int cl, int rt, int cr, int rb) {
-        setBoundingBox(bbox);
-        this.contentBlocks = contentBlocks;
-        this.order = Integer.MIN_VALUE;
-        this.invisible = invisible;
-        if (contentBlocks != null) {
-            for (TextEntity chunk : contentBlocks) {
-                this.order = Math.max(this.order, chunk.getEndOrder());
-            }
-        }
-        assert (cl >= 0);
-        this.cl = cl;
-        assert (rt >= 0);
-        this.rt = rt;
-        assert (cr >= cl);
-        this.cr = cr;
-        assert (rb >= rt);
-        this.rb = rb;
-    }
-
-    public TableCell(BoundingBox bbox, int rowSpan, int colspan){
+    public TableCell(BoundingBox bbox, int rowSpan, int colSpan, List<TextEntity> contentBlocks) {
         setBoundingBox(bbox);
         this.rowSpan = rowSpan;
-        this.colSpan = colspan;
+        this.colSpan = colSpan;
+        this.contentBlocks = contentBlocks;
+        if (contentBlocks != null) {
+            this.content = contentBlocks.stream().map(TextEntity::getText).collect(Collectors.joining(" ")).trim();
+        } else {
+            this.content = "";
+        }
     }
 }
