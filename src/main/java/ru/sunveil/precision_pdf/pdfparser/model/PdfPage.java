@@ -35,7 +35,7 @@ public class PdfPage implements PdfEntity {
     private List<Ruling> verticalRulings = new ArrayList<>();
     @JsonIgnore
     private List<Ruling> horizontalRulings = new ArrayList<>();
-    @JsonIgnore
+//    @JsonIgnore
     private List<Ruling> rulings = new ArrayList<>();
     private List<BoundingBox> cells = new ArrayList<>();
     private List<BoundingBox> possibleTables = new ArrayList<>();

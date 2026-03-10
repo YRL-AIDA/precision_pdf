@@ -110,4 +110,13 @@ public class SimpleParserTest {
         assertTrue(foundBoundary,
                 "should have a vertical ruling near the right edge of № cell (within 10pt)");
     }
+
+    @Test
+    public void testHtmlExporterProducesHtml() {
+        ru.sunveil.precision_pdf.pdfparser.export.HtmlExporter exporter = new ru.sunveil.precision_pdf.pdfparser.export.HtmlExporter();
+        String html = exporter.export(document, ru.sunveil.precision_pdf.pdfparser.export.ExportFormat.HTML);
+        assertNotNull(html, "HTML output should not be null");
+        assertTrue(html.contains("<html"), "output should contain html tag");
+        assertTrue(html.contains("Задачи на 2026 год") || html.contains("<span"), "should include some content from page");
+    }
 }

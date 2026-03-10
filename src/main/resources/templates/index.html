@@ -827,6 +827,7 @@
         // Текущий файл и результаты
         let currentFile = null;
         let extractionResults = null;
+        let currentOutputFormat = 'JSON';
 
         // Инициализация
         initializeEventListeners();
@@ -1013,6 +1014,8 @@
                 const extractTables = document.getElementById('extractTables').checked;
                 const extractMetadata = document.getElementById('extractMetadata').checked;
                 const outputFormat = document.getElementById('outputFormat').value;
+
+                currentOutputFormat = outputFormat;
 
                 // Создать FormData для отправки файла и параметров
                 const formData = new FormData();
@@ -1227,9 +1230,14 @@
                 }
             }
 
-            // Отображение текста (если это строка)
+            // Отображение текста/HTML (если это строка)
             if (typeof results === 'string') {
-                document.getElementById('textContent').textContent = results;
+                const textCont = document.getElementById('textContent');
+                if (currentOutputFormat && currentOutputFormat.toUpperCase() === 'HTML') {
+                    textCont.innerHTML = results;
+                } else {
+                    textCont.textContent = results;
+                }
 
                 // Добавление обработчиков для кнопок текста
                 document.getElementById('copyTextBtn').onclick = () => {
