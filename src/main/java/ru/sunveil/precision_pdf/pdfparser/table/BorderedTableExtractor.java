@@ -184,7 +184,7 @@ public final class BorderedTableExtractor implements TableExtractor {
             table.setRows(rows);
 
             Collections.sort(horizontal, new RangeComporator());
-            Collections.sort(vertical, new RangeComporator());
+            Collections.sort(vertical, Collections.reverseOrder(new RangeComporator()));
             table.setHorizontal(horizontal);
             table.setVertical(vertical);
 

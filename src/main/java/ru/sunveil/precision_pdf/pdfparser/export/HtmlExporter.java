@@ -51,7 +51,7 @@ public class HtmlExporter implements Exporter {
                 sb.append("<table style=\"border-collapse:collapse;width:100%;height:100%;\">");
                 if (table.getRows() != null) {
                     List<List<TableCell>> rows = table.getRows();
-                    for (int ri = rows.size() - 1; ri >= 0; ri--) {
+                    for (int ri = 0; ri < rows.size(); ri++) {
                         List<TableCell> row = rows.get(ri);
                         sb.append("<tr>");
                         if (row != null) {
