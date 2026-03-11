@@ -44,7 +44,8 @@ public class Table implements PdfEntity {
     }
 
     public void addCell(TableCell cell, int rowId) {
-//        this.order = Math.max(this.order, cell.getOrder());
+//        this.order = cell.getOrder() if this.order == Integer.MIN_VALUE else Math.min(this.order, cell.getOrder());
+        this.order = this.order == Integer.MIN_VALUE ? cell.getOrder() : Math.min(this.order, cell.getOrder());
         if (rows.size() < rowId + 1) {
             for (int i = rows.size(); i < rowId + 1; i++) {
                 rows.add(new ArrayList<>());

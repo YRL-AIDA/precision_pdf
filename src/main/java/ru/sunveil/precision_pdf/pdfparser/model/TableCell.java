@@ -31,6 +31,7 @@ public class TableCell implements PdfEntity {
 
     public TableCell(BoundingBox bbox, int rowSpan, int colSpan, List<TextEntity> contentBlocks) {
         setBoundingBox(bbox);
+        this.order = ((Word) contentBlocks.getFirst()).getOrder();
         this.rowSpan = rowSpan;
         this.colSpan = colSpan;
         this.contentBlocks = contentBlocks;
