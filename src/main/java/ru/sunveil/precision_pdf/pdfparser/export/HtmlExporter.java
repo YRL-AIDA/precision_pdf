@@ -5,7 +5,12 @@ import ru.sunveil.precision_pdf.pdfparser.model.PdfDocument;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
 import ru.sunveil.precision_pdf.pdfparser.model.Ruling;
 import ru.sunveil.precision_pdf.pdfparser.model.Word;
+import ru.sunveil.precision_pdf.pdfparser.model.Table;
+import ru.sunveil.precision_pdf.pdfparser.model.TableCell;
+import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
+
+import java.util.List;
 
 @Component
 public class HtmlExporter implements Exporter {
@@ -18,6 +23,8 @@ public class HtmlExporter implements Exporter {
         sb.append("body{margin:0;padding:0;}\n");
         sb.append(".page{position:relative;margin:1rem auto; border:1px solid #ccc;}\n");
         sb.append(".word{position:absolute;white-space:pre;}\n");
+        sb.append(".textline{position:absolute;white-space:pre-wrap;overflow:hidden;}\n");
+        sb.append(".table-wrapper{position:absolute;overflow:auto;}\n");
         sb.append(".ruling{position:absolute;background:#000;}\n");
         sb.append("</style>\n</head>\n<body>\n");
 
@@ -28,41 +35,68 @@ public class HtmlExporter implements Exporter {
                     .append(page.getHeight())
                     .append("pt;\">\n");
 
-            for (Ruling r : page.getVisibleRulings()) {
-                if (r.isVertical()) {
-                    double top = page.getHeight() - r.getBottom();
-                    double height = r.getBottom() - r.getTop();
-                    sb.append("<div class=\"ruling\" style=\"left:")
-                            .append(r.getLeft())
-                            .append("pt;top:")
-                            .append(top)
-                            .append("pt;width:1pt;height:")
-                            .append(height)
-                            .append("pt;\"></div>\n");
-                } else {
-                    double top = page.getHeight() - r.getTop();
-                    double width = r.getRight() - r.getLeft();
-                    sb.append("<div class=\"ruling\" style=\"left:")
-                            .append(r.getLeft())
-                            .append("pt;top:")
-                            .append(top)
-                            .append("pt;width:")
-                            .append(width)
-                            .append("pt;height:1pt;\"></div>\n");
+            for (Table table : page.getTables()) {
+                if (table == null || table.getBoundingBox() == null) continue;
+                BoundingBox tb = table.getBoundingBox();
+                double top = page.getHeight() - tb.getY() - tb.getHeight();
+                sb.append("<div class=\"table-wrapper\" style=\"left:")
+                        .append(tb.getX())
+                        .append("pt;top:")
+                        .append(top)
+                        .append("pt;width:")
+                        .append(tb.getWidth())
+                        .append("pt;height:")
+                        .append(tb.getHeight())
+                        .append("pt;\">");
+                sb.append("<table style=\"border-collapse:collapse;width:100%;height:100%;\">");
+                if (table.getRows() != null) {
+                    List<List<TableCell>> rows = table.getRows();
+                    for (int ri = rows.size() - 1; ri >= 0; ri--) {
+                        List<TableCell> row = rows.get(ri);
+                        sb.append("<tr>");
+                        if (row != null) {
+                            for (TableCell cell : row) {
+                                if (cell == null) continue;
+                                int colspan = Math.max(1, cell.getColSpan());
+                                int rowspan = Math.max(1, cell.getRowSpan());
+                                String content = escapeHtml(cell.getContent());
+                                sb.append("<td");
+                                if (colspan > 1) sb.append(" colspan=\"").append(colspan).append("\"");
+                                if (rowspan > 1) sb.append(" rowspan=\"").append(rowspan).append("\"");
+                                sb.append(" style=\"border:1px solid #ccc;padding:4px;vertical-align:top;\">")
+                                        .append(content)
+                                        .append("</td>");
+                            }
+                        }
+                        sb.append("</tr>");
+                    }
                 }
+                sb.append("</table>");
+                sb.append("</div>\n");
             }
 
-            for (Word w : page.getWords()) {
-                BoundingBox b = w.getBoundingBox();
-                if (b == null) continue;
+            for (TextLine tl : page.getTextLines()) {
+                if (tl == null || tl.getBoundingBox() == null) continue;
+                boolean insideTable = false;
+                for (Table table : page.getTables()) {
+                    if (table == null || table.getBoundingBox() == null) continue;
+                    if (table.getBoundingBox().intersects(tl.getBoundingBox())) {
+                        insideTable = true;
+                        break;
+                    }
+                }
+                if (insideTable) continue;
+                BoundingBox b = tl.getBoundingBox();
                 double top = page.getHeight() - b.getY() - b.getHeight();
-                sb.append("<span class=\"word\" style=\"left:")
+                sb.append("<div class=\"textline\" style=\"left:")
                         .append(b.getX())
                         .append("pt;top:")
                         .append(top)
+                        .append("pt;width:")
+                        .append(b.getWidth())
                         .append("pt;\">")
-                        .append(escapeHtml(w.getText()))
-                        .append("</span>\n");
+                        .append(escapeHtml(tl.getText()))
+                        .append("</div>\n");
             }
 
             sb.append("</div>\n");
