@@ -8,9 +8,10 @@ import ru.sunveil.precision_pdf.pdfparser.model.Word;
 import ru.sunveil.precision_pdf.pdfparser.model.Table;
 import ru.sunveil.precision_pdf.pdfparser.model.TableCell;
 import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
-import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
+import ru.sunveil.precision_pdf.pdfparser.model.PdfImage;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
 
@@ -62,6 +63,11 @@ public class HtmlExporter implements Exporter {
                 elements.add(new PageElement(PageElementType.TABLE, table, table.getOrder()));
             }
 
+            for (PdfImage image : page.getImages()) {
+                if (image == null || image.getBoundingBox() == null) continue;
+                elements.add(new PageElement(PageElementType.IMAGE, image, 0)); // Images don't have order, so use 0
+            }
+
             elements.sort(Comparator.comparingInt(e -> e.order));
 
             for (PageElement element : elements) {
@@ -71,6 +77,9 @@ public class HtmlExporter implements Exporter {
                         break;
                     case TABLE:
                         renderTable((Table) element.element, sb);
+                        break;
+                    case IMAGE:
+                        renderImage((PdfImage) element.element, sb);
                         break;
                 }
             }
@@ -151,9 +160,47 @@ public class HtmlExporter implements Exporter {
         sb.append("</div>\n");
     }
 
+    private void renderImage(PdfImage image, StringBuilder sb) {
+        if (image.getImageData() == null || image.getImageData().length == 0) return;
+
+        String base64Data = java.util.Base64.getEncoder().encodeToString(image.getImageData());
+        String mimeType = "image/" + (image.getImageFormat() != null ? image.getImageFormat().toLowerCase() : "png");
+
+        // Получаем bounding box
+        var bbox = image.getBoundingBox();
+
+        // Если изображение слишком большое, масштабируем его
+        double maxWidth = 800; // максимальная ширина в пикселях
+        double maxHeight = 600; // максимальная высота в пикселях
+
+        double width = bbox.getWidth();
+        double height = bbox.getHeight();
+
+        if (width > maxWidth || height > maxHeight) {
+            double scale = Math.min(maxWidth / width, maxHeight / height);
+            width = width * scale;
+            height = height * scale;
+        }
+
+        sb.append("<div style=\"position:relative;display:inline-block;margin:10px;\">")
+                .append("<img src=\"data:")
+                .append(mimeType)
+                .append(";base64,")
+                .append(base64Data)
+                .append("\" style=\"width:")
+                .append(width)
+                .append("px;height:auto;max-width:100%;border:1px solid #ddd;\"")
+                .append(" alt=\"PDF Image\">")
+                .append("<div style=\"font-size:10px;color:#666;text-align:center;\">")
+                .append("Image (").append(Math.round(bbox.getWidth())).append("x").append(Math.round(bbox.getHeight())).append(" pt)")
+                .append("</div>")
+                .append("</div>\n");
+    }
+
     private enum PageElementType {
         TEXT_LINE,
-        TABLE
+        TABLE,
+        IMAGE
     }
 
     private static class PageElement {

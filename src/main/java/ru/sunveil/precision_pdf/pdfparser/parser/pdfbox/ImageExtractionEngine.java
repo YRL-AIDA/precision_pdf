@@ -1,14 +1,21 @@
 package ru.sunveil.precision_pdf.pdfparser.parser.pdfbox;
 
+import lombok.Getter;
+import org.apache.pdfbox.contentstream.PDFStreamEngine;
+import org.apache.pdfbox.contentstream.operator.DrawObject;
+import org.apache.pdfbox.contentstream.operator.Operator;
+import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.graphics.PDXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
-import org.apache.pdfbox.pdmodel.graphics.PDXObject;
+import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.contentstream.operator.state.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfImage;
@@ -87,10 +94,6 @@ public class ImageExtractionEngine implements ImageExtractor {
         // Извлечение XObject изображений
         images.addAll(extractXObjectImages(page, pageNumber));
 
-        // Рендеринг страницы как изображения (если нужно)
-        if (images.isEmpty()) {
-            images.addAll(renderPageAsImage(document, page, pageNumber));
-        }
 
         return images;
     }
@@ -128,8 +131,66 @@ public class ImageExtractionEngine implements ImageExtractor {
      */
     private List<PdfImage> extractXObjectImages(PDPage page, int pageNumber) {
         List<PdfImage> images = new ArrayList<>();
-        // Реализация извлечения XObject изображений
-        // Этот метод может быть расширен для обработки специфических типов XObject
+        PDResources resources = page.getResources();
+
+        if (resources == null) {
+            return images;
+        }
+
+        try {
+            Iterable<COSName> xObjectNames = resources.getXObjectNames();
+            for (COSName xObjectName : xObjectNames) {
+                PDXObject xObject = resources.getXObject(xObjectName);
+
+                if (xObject instanceof PDImageXObject) {
+                    PDImageXObject pdImage = (PDImageXObject) xObject;
+                    PdfImage pdfImage = convertPdImageToPdfImage(pdImage, pageNumber);
+                    images.add(pdfImage);
+
+                    logger.debug("Extracted XObject image: {}x{}, format: {}",
+                            pdfImage.getWidth(), pdfImage.getHeight(), pdfImage.getImageFormat());
+                } else if (xObject instanceof PDFormXObject) {
+                    PDFormXObject form = (PDFormXObject) xObject;
+                    List<PdfImage> formImages = extractImagesFromForm(form, pageNumber);
+                    images.addAll(formImages);
+                }
+            }
+        } catch (IOException e) {
+            logger.warn("Failed to extract XObject images from page {}: {}", pageNumber, e.getMessage());
+        }
+
+        return images;
+    }
+
+    /**
+     * Рекурсивно извлекает изображения из PDFormXObject
+     */
+    private List<PdfImage> extractImagesFromForm(PDFormXObject form, int pageNumber) throws IOException {
+        List<PdfImage> images = new ArrayList<>();
+        PDResources formResources = form.getResources();
+
+        if (formResources == null) {
+            return images;
+        }
+
+        Iterable<COSName> xObjectNames = formResources.getXObjectNames();
+        for (COSName xObjectName : xObjectNames) {
+            PDXObject xObject = formResources.getXObject(xObjectName);
+
+            if (xObject instanceof PDImageXObject) {
+                PDImageXObject pdImage = (PDImageXObject) xObject;
+                PdfImage pdfImage = convertPdImageToPdfImage(pdImage, pageNumber);
+                images.add(pdfImage);
+
+                logger.debug("Extracted image from form: {}x{}, format: {}",
+                        pdfImage.getWidth(), pdfImage.getHeight(), pdfImage.getImageFormat());
+            } else if (xObject instanceof PDFormXObject) {
+                // Recursively extract from nested forms
+                PDFormXObject nestedForm = (PDFormXObject) xObject;
+                List<PdfImage> nestedImages = extractImagesFromForm(nestedForm, pageNumber);
+                images.addAll(nestedImages);
+            }
+        }
 
         return images;
     }
