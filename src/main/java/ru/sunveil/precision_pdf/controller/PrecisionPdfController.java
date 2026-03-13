@@ -60,8 +60,7 @@ public class PrecisionPdfController {
         long startTime = System.currentTimeMillis();
 
         try {
-            ExtractionConfig config = createCustomConfig(true, false,
-                    false, extractMetadata);
+            ExtractionConfig config = createCustomConfig(extractText, extractImages, extractTables, extractMetadata);
 
             config.setOutputFormat(outputFormat);
 
