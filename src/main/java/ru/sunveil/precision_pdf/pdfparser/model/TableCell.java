@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import lombok.Data;
 import ru.sunveil.precision_pdf.pdfparser.model.core.*;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,14 +32,18 @@ public class TableCell implements PdfEntity {
 
     public TableCell(BoundingBox bbox, int rowSpan, int colSpan, List<TextEntity> contentBlocks) {
         setBoundingBox(bbox);
-        this.order = ((Word) contentBlocks.getFirst()).getOrder();
+
+        if (contentBlocks == null || contentBlocks.isEmpty()) {
+            this.order = 0;
+            this.contentBlocks = Collections.emptyList();
+            this.content = "";
+        } else {
+            this.order = ((Word) contentBlocks.getFirst()).getOrder();
+            this.contentBlocks = contentBlocks;
+            this.content = contentBlocks.stream().map(TextEntity::getText).collect(Collectors.joining(" ")).trim();
+        }
+
         this.rowSpan = rowSpan;
         this.colSpan = colSpan;
-        this.contentBlocks = contentBlocks;
-        if (contentBlocks != null) {
-            this.content = contentBlocks.stream().map(TextEntity::getText).collect(Collectors.joining(" ")).trim();
-        } else {
-            this.content = "";
-        }
     }
 }
