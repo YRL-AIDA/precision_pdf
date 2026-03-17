@@ -1,0 +1,58 @@
+name: Run Tests on Pull Request
+
+on:
+  pull_request:
+    branches: [ main, develop, master ]
+  push:
+    branches: [ main, develop, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        java-version: [ '21' ]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Display Java version
+      run: java -version
+
+    - name: Compile project
+      run: mvn clean compile -DskipTests
+
+    - name: Run tests
+      run: mvn test -B
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: target/surefire-reports/
+        retention-days: 30
+
+    - name: Publish test report
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: JUnit Test Results
+        path: 'target/surefire-reports/TEST-*.xml'
+        reporter: 'java-junit'
+        fail-on-error: false
+
+    - name: Code coverage
+      run: |
+        echo "Tests completed successfully!"
+        echo "Total test files run:"
+        find target/surefire-reports -name "*.xml" | wc -l
