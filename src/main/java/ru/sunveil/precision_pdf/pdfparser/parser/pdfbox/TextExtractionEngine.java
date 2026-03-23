@@ -49,6 +49,9 @@ public class TextExtractionEngine extends PDFTextStripper {
     private List<TextPosition> currentWordPositions;
     private float wordStartX, wordStartY, wordEndX, wordEndY;
 
+    private float cropBoxOffsetX = 0f;
+    private float cropBoxOffsetY = 0f;
+
     private final char[] whitespaces = {
             '\u0020', '\u00A0', '\u0009', '\n', '\u000B', '\u000C', '\r',
             '\u0085', '\u1680', '\u2000', '\u2001', '\u2002', '\u2003',
@@ -100,6 +103,10 @@ public class TextExtractionEngine extends PDFTextStripper {
         int pageCount = document.getNumberOfPages();
         for (int i = 0; i < pageCount; i++) {
             PDPage page = document.getPage(i);
+            PDRectangle cropBox = page.getCropBox();
+            cropBoxOffsetX = cropBox.getLowerLeftX();
+            cropBoxOffsetY = cropBox.getLowerLeftY();
+
             currentPageNumber = i + 1;
             PDRectangle pageSize = page.getMediaBox();
             pageHeight = pageSize.getHeight();
@@ -134,10 +141,6 @@ public class TextExtractionEngine extends PDFTextStripper {
     protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
         if (StringUtils.isBlank(text) || textPositions.isEmpty()) {
             return;
-        }
-
-        for (Object rulings : pageRulings.values()){
-
         }
 
         order++;
@@ -422,7 +425,7 @@ public class TextExtractionEngine extends PDFTextStripper {
 
         Word word = new Word();
         word.setPageNumber(currentPageNumber);
-        word.setBoundingBox(new BoundingBox(left, topY, width, height));
+        word.setBoundingBox(new BoundingBox(left+cropBoxOffsetX, topY-cropBoxOffsetY, width, height));
         word.setText(text);
         word.setFontName(styleTp.getFont().getName());
         word.setFontSize(styleTp.getFontSizeInPt());
@@ -545,10 +548,10 @@ public class TextExtractionEngine extends PDFTextStripper {
         float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
 
         for (TextPosition tp : positions) {
-            float left = tp.getXDirAdj();
-            float top = convertToTopLeftY(tp.getYDirAdj() - tp.getHeightDir());
-            float right = tp.getXDirAdj() + tp.getWidthDirAdj();
-            float bottom = convertToTopLeftY(tp.getYDirAdj());
+            float left = tp.getXDirAdj() + cropBoxOffsetX;
+            float top = convertToTopLeftY(tp.getYDirAdj() - tp.getHeightDir()) - cropBoxOffsetY;
+            float right = tp.getXDirAdj() + tp.getWidthDirAdj() + cropBoxOffsetX;
+            float bottom = convertToTopLeftY(tp.getYDirAdj()) - cropBoxOffsetY;
 
             // normalize top/bottom for this tp
             float tpMinY = Math.min(top, bottom);
