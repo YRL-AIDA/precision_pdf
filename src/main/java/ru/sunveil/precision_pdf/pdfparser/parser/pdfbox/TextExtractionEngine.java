@@ -1,6 +1,7 @@
 package ru.sunveil.precision_pdf.pdfparser.parser.pdfbox;
 
 import io.micrometer.common.util.StringUtils;
+import lombok.Setter;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -17,9 +18,8 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
-import ru.sunveil.precision_pdf.pdfparser.table.VisibleRulingExtractor;
+
 import ru.sunveil.precision_pdf.pdfparser.model.Ruling;
-import org.apache.pdfbox.pdmodel.PDPage;
 
 /**
  * Engine for extracting text content from PDF documents using PDFBox library.
@@ -36,8 +36,8 @@ public class TextExtractionEngine extends PDFTextStripper {
     private float pageHeight;
     private int order;
 
-    // precomputed visible rulings by page (pageNumber -> rulings)
-    private Map<Integer, List<Ruling>> pageRulings = new HashMap<>();
+    @Setter
+    private List<List<Ruling>> pageRulings = new ArrayList<>();
 
     private boolean newLineStarted;
     private float lineStartX, lineStartY;
@@ -98,7 +98,6 @@ public class TextExtractionEngine extends PDFTextStripper {
         }
 
         resetExtractionState();
-        precomputePageRulings(document);
 
         int pageCount = document.getNumberOfPages();
         for (int i = 0; i < pageCount; i++) {
@@ -314,7 +313,7 @@ public class TextExtractionEngine extends PDFTextStripper {
             for (int i = 1; i < remaining.size(); i++) {
                 Word prev = remaining.get(i - 1);
                 Word curr = remaining.get(i);
-                List<Ruling> rulings = pageRulings.get(currentPageNumber);
+                List<Ruling> rulings = getVisibleRulingsForPage(currentPageNumber);
                 if (isSeparatedByVerticalRuling(prev.getBoundingBox(), curr.getBoundingBox(), rulings)) {
                     splitIndex = i;
                     break;
@@ -892,44 +891,13 @@ public class TextExtractionEngine extends PDFTextStripper {
     }
 
 
-    public void clear() {
-        resetExtractionState();
-    }
-
     /**
      * Return visible rulings detected for given page (may be empty).
      */
     public List<Ruling> getVisibleRulingsForPage(int pageNumber) {
-        return pageRulings.getOrDefault(pageNumber, Collections.emptyList());
+        int index = pageNumber - 1;
+        return (index >= 0 && index < pageRulings.size()) ? pageRulings.get(index) : Collections.emptyList();
     }
 
 
-    public int getTextChunkCount() {
-        return cachedChunks.size();
-    }
-
-    public int getTextLineCount() {
-        return cachedLines.size();
-    }
-
-    public int getWordCount() {
-        return cachedWords.size();
-    }
-
-    private void precomputePageRulings(PDDocument document) throws IOException {
-        pageRulings.clear();
-        VisibleRulingExtractor vre = new VisibleRulingExtractor(document);
-        int pageCount = document.getNumberOfPages();
-        for (int i = 0; i < pageCount; i++) {
-            PDPage pdPage = document.getPage(i);
-            try {
-                List<Ruling> rulings = vre.extractVisibleRulings(pdPage);
-                if (rulings != null) {
-                    pageRulings.put(i + 1, new ArrayList<>(rulings));
-                }
-            } catch (Exception e) {
-                // ignore per-page rulings errors
-            }
-        }
-    }
 }

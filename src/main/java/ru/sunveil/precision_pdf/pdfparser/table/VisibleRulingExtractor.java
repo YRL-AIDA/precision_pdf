@@ -1,5 +1,6 @@
 package ru.sunveil.precision_pdf.pdfparser.table;
 
+import lombok.Getter;
 import org.apache.pdfbox.contentstream.PDContentStream;
 import org.apache.pdfbox.contentstream.operator.Operator;
 import org.apache.pdfbox.cos.COSBase;
@@ -44,7 +45,8 @@ public class VisibleRulingExtractor {
     private static final int EXPAND_AMOUNT = 1;
 
     private final PDDocument pdDocument;
-    private final List<Ruling> visibleRulings;
+    @Getter
+    private final List<List<Ruling>> visibleRulings;
 
     private void release() {
         visibleRulings.clear();
@@ -55,7 +57,7 @@ public class VisibleRulingExtractor {
         visibleRulings = new ArrayList<>(200);
     }
 
-    public List<Ruling> extractVisibleRulings(PDPage pdPage) throws IOException {
+    public List<Ruling> extractVisibleRulingsForOnePage(PDPage pdPage) throws IOException {
         List<Ruling> resultRulings = new ArrayList<>();
 
         List<Object> newTokens = createTokensWithoutText(pdPage);
@@ -78,7 +80,7 @@ public class VisibleRulingExtractor {
         allEdges.addAll(horizontalRulings);
         allEdges.addAll(verticalRulings);
 
-        if (allEdges.size() > 0) {
+        if (!allEdges.isEmpty()) {
             GeometryUtils.snapPoints(allEdges, GeometryUtils.POINT_SNAP_DISTANCE_THRESHOLD, GeometryUtils.POINT_SNAP_DISTANCE_THRESHOLD);
 
             for (List<Ruling> rulings : Arrays.asList(horizontalRulings, verticalRulings)) {
@@ -95,116 +97,31 @@ public class VisibleRulingExtractor {
             horizontalRulings = GeometryUtils.collapseOrientedRulings(horizontalRulings, 5);
             verticalRulings = GeometryUtils.collapseOrientedRulings(verticalRulings, 5);
 
-            if (horizontalRulings != null) {
-                for (Ruling ruling: horizontalRulings) {
-                    float x1 = cropOffsetX + ruling.x1 / 2;
-                    float x2 = cropOffsetX + ruling.x2 / 2;
-                    float y1 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y1 / 2;
-                    float y2 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y2 / 2;
-                    ruling.setLine(x1, y1, x2, y2);
-                }
-                resultRulings.addAll(horizontalRulings);
+            for (Ruling ruling : horizontalRulings) {
+                float x1 = cropOffsetX + ruling.x1 / 2;
+                float x2 = cropOffsetX + ruling.x2 / 2;
+                float y2 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y1 / 2;
+                float y1 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y2 / 2;
+                ruling.setLine(x1, y1, x2, y2);
             }
-            if (verticalRulings != null) {
-                for (Ruling ruling: verticalRulings) {
-                    float x1 = cropOffsetX + ruling.x1 / 2;
-                    float x2 = cropOffsetX + ruling.x2 / 2;
-                    float y1 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y1 / 2;
-                    float y2 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y2 / 2;
-                    ruling.setLine(x1, y1, x2, y2);
-                }
-                resultRulings.addAll(verticalRulings);
+            resultRulings.addAll(horizontalRulings);
+            for (Ruling ruling : verticalRulings) {
+                float x1 = cropOffsetX + ruling.x1 / 2;
+                float x2 = cropOffsetX + ruling.x2 / 2;
+                float y2 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y1 / 2;
+                float y1 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y2 / 2;
+                ruling.setLine(x1, y1, x2, y2);
             }
+            resultRulings.addAll(verticalRulings);
         }
 
         return resultRulings;
     }
 
-    public void process(PdfPage page) throws IOException {
-
-        release();
-
-        PDRectangle cropBox = page.getPDPage().getCropBox();
-        float cropOffsetX = cropBox.getLowerLeftX();
-        float cropOffsetY = cropBox.getLowerLeftY();
-
-        BufferedImage image;
-        PDPage pdPage = page.getPDPage();
-
-        List<Object> newTokens = createTokensWithoutText(pdPage);
-        PDStream newContents = new PDStream(pdDocument);
-        writeTokensToStream(newContents, newTokens);
-        pdPage.setContents(newContents);
-        PDResources resources = pdPage.getResources();
-        if (resources != null) {
-            processResources(resources);
-            //removeAllImages(resources);
-        }
-        image = Utils.convertPageToImage(pdPage, 144, ImageType.GRAY);
-        List<Ruling> horizontalRulings = getHorizontalRulings(image);
-        List<Ruling> verticalRulings = getVerticalRulings(image);
-
-        List<Ruling> allEdges = new ArrayList<>(horizontalRulings);
-        allEdges.addAll(verticalRulings);
-
-        if (allEdges.size() > 0) {
-            GeometryUtils.snapPoints(allEdges, GeometryUtils.POINT_SNAP_DISTANCE_THRESHOLD, GeometryUtils.POINT_SNAP_DISTANCE_THRESHOLD);
-
-            for (List<Ruling> rulings : Arrays.asList(horizontalRulings, verticalRulings)) {
-                for (Iterator<Ruling> iterator = rulings.iterator(); iterator.hasNext(); ) {
-                    Ruling ruling = iterator.next();
-
-                    ruling.normalize();
-                    if (ruling.oblique()) {
-                        iterator.remove();
-                    }
-                }
-            }
-
-            horizontalRulings = GeometryUtils.collapseOrientedRulings(horizontalRulings, 5);
-            verticalRulings = GeometryUtils.collapseOrientedRulings(verticalRulings, 5);
-
-            visibleRulings.clear();
-            if (horizontalRulings != null) {
-                for (Ruling ruling: horizontalRulings) {
-                    float x1 = cropOffsetX + ruling.x1 / 2;
-                    float x2 = cropOffsetX + ruling.x2 / 2;
-                    float y1 = cropOffsetY + ruling.y1 / 2;
-                    float y2 = cropOffsetY + ruling.y2 / 2;
-                    ruling.setLine(x1, y1, x2, y2);
-                }
-                visibleRulings.addAll(horizontalRulings);
-            }
-            if (verticalRulings != null) {
-                for (Ruling ruling: verticalRulings) {
-                    float x1 = cropOffsetX + ruling.x1 / 2;
-                    float x2 = cropOffsetX + ruling.x2 / 2;
-                    float y1 = cropOffsetY + ruling.y1 / 2;
-                    float y2 = cropOffsetY + ruling.y2 / 2;
-                    ruling.setLine(x1, y1, x2, y2);
-                }
-                visibleRulings.addAll(verticalRulings);
-            }
-            BoundingBox bbox = page.getBoundingBox();
-            for (Ruling ruling : visibleRulings){
-                double y1 = page.getHeight() - ruling.getY1();
-                double y2 = page.getHeight() - ruling.getY2();
-                ruling.setLine(ruling.x1, y2, ruling.x2, y1);
-            }
-
-            if (bbox != null) {
-                for (Ruling r: visibleRulings){
-                    Rectangle2D rec = r.getBounds();
-                    BoundingBox rulingbbox = new BoundingBox((float) rec.getX(), (float) rec.getY(), (float) rec.getWidth(), (float) rec.getHeight());
-                    if (bbox.contains(rulingbbox)) {
-                        page.addVisibleRuling(r);
-                    }
-                }
-            } else {
-                page.addVisibleRulings(visibleRulings);
-
-            }
-
+    public void extractVisibleRulings(PDDocument document) throws IOException {
+        for(int i = 0; i < document.getNumberOfPages(); i++){
+            List<Ruling> pageRulings = extractVisibleRulingsForOnePage(document.getPage(i));
+            visibleRulings.add(pageRulings);
         }
     }
 

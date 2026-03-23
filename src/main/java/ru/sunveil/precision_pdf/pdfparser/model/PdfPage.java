@@ -65,10 +65,9 @@ public class PdfPage implements PdfEntity {
         return document.getPage(index);
     }
 
-    public boolean addVisibleRulings(List<Ruling> visibleRulings) {
+    public void addVisibleRulings(List<Ruling> visibleRulings) {
         this.visibleRulings.clear();
-        boolean result = visibleRulings == null ? false : this.visibleRulings.addAll(visibleRulings);
-        return result;
+        this.visibleRulings.addAll(visibleRulings);
     }
 
     public void removeBlock(TextEntity block){

@@ -305,6 +305,7 @@ public final class BorderedTableExtractor implements TableExtractor {
         while (rulingIterator.hasNext()) {
 
             Ruling ruling = rulingIterator.next();
+            System.out.println(ruling.getLength());
             if (ruling.getRenderingType() == Ruling.RenderingType.INVISIBLE) {
                 continue;
             }

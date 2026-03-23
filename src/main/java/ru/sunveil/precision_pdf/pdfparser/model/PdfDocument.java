@@ -27,8 +27,8 @@ public class PdfDocument {
     }
 
     public void extractLines() throws IOException {
-        for (PdfPage page: pages) {
-            visibleRulingExtractor.process(page);
+        for (int i = 0; i < pages.size(); i++){
+            pages.get(i).addVisibleRulings(visibleRulingExtractor.getVisibleRulings().get(i));
         }
     }
 }

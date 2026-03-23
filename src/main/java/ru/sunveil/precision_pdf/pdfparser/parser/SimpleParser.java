@@ -16,6 +16,8 @@ import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.TextExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.table.BorderedTableExtractor;
 import ru.sunveil.precision_pdf.pdfparser.table.VisibleRulingExtractor;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -27,6 +29,8 @@ public class SimpleParser extends AbstractPdfBoxParser {
     protected ExtractionConfig extractionConfig;
     private final ImageExtractionEngine imageExtractionEngine;
     private static final Logger logger = LoggerFactory.getLogger(SimpleParser.class);
+    private VisibleRulingExtractor visibleRulingExtractor;
+    private TextExtractionEngine textExtractionEngine;
 
     public SimpleParser() {
         this.imageExtractionEngine = new ImageExtractionEngine();
@@ -45,16 +49,7 @@ public class SimpleParser extends AbstractPdfBoxParser {
         try {
             document = Loader.loadPDF(pdfFile);
             this.currentDocument = document;
-
-            TextExtractionResult globalTextResult = null;
-            if (extractionConfig.isExtractText()) {
-                globalTextResult = extractTextAllTextEntities(document);
-            }
-//            TableExtractionResult globalTableResult = null;
-//            if (extractionConfig.isExtractTables()){
-//                TableExtractionResult = extractTables(document);
-//            }
-            return parseDocument(document, pdfFile.getName(), globalTextResult);
+            return parseDocument(document, pdfFile.getName());
         } catch (IOException e) {
             throw new PdfParseException("Failed to load PDF document: " + pdfFile.getAbsolutePath(), e);
         } finally {
@@ -64,26 +59,36 @@ public class SimpleParser extends AbstractPdfBoxParser {
     }
 
     @Override
-    public ru.sunveil.precision_pdf.pdfparser.model.TextExtractionResult extractTextAllTextEntities(PDDocument document) throws IOException {
+    public TextExtractionResult extractTextAllTextEntities(PDDocument document) throws IOException {
         if (document == null) {
             throw new IllegalArgumentException("Document cannot be null");
         }
 
-        TextExtractionEngine extractionEngine = new TextExtractionEngine();
-        return extractionEngine.extractText(document);
+        return textExtractionEngine.extractText(document);
     }
 
-    protected PdfDocument parseDocument(PDDocument document, String filename, TextExtractionResult textResult) throws IOException {
+    protected PdfDocument parseDocument(PDDocument document, String filename) throws IOException {
         PdfDocument pdfDocument = new PdfDocument(document);
         pdfDocument.setFilename(filename);
         pdfDocument.setTotalPages(document.getNumberOfPages());
-        pdfDocument.setVisibleRulingExtractor(new VisibleRulingExtractor(document));
+
+        visibleRulingExtractor = new VisibleRulingExtractor(document);
+//        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//        document.save(baos);
+//        byte[] pdfBytes = baos.toByteArray();
+//        PDDocument docCopy = Loader.loadPDF(pdfBytes);
+        visibleRulingExtractor.extractVisibleRulings(document);
+
+        textExtractionEngine = new TextExtractionEngine();
+        textExtractionEngine.setPageRulings(visibleRulingExtractor.getVisibleRulings());
+
+        pdfDocument.setVisibleRulingExtractor(visibleRulingExtractor);
 
         if (extractionConfig.isExtractMetadata()) {
             pdfDocument.setMetadata(extractMetadata(document));
         }
-
-        if (extractionConfig.isExtractText() && textResult == null) {
+        TextExtractionResult textResult = null;
+        if (extractionConfig.isExtractText()) {
             textResult = extractTextAllTextEntities(document);
         }
         List<PdfPage> pages = extractPages(document, textResult);
