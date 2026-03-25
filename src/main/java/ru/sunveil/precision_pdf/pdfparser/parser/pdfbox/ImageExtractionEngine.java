@@ -107,9 +107,9 @@ public class ImageExtractionEngine extends PDFStreamEngine implements ImageExtra
         this.currentPageNumber = pageNumber;
         this.currentPageImages = new ArrayList<>();
 
-        PDRectangle mediaBox = page.getMediaBox();
-        this.pageWidth = mediaBox.getWidth();
-        this.pageHeight = mediaBox.getHeight();
+        PDRectangle cropBox = page.getCropBox();
+        this.pageWidth = cropBox.getWidth();
+        this.pageHeight = cropBox.getHeight();
 
         try {
             processPage(page);

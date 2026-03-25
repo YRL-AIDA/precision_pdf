@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 @Data
 @JsonIgnoreType
 public class TableCell implements PdfEntity {
-    public static final float MIN_CELL_WIDTH = 10;
+    public static final float MIN_CELL_WIDTH = 5;
     public static final float MIN_CELL_HEIGHT = 5;
     private int pageNumber;
     private BoundingBox boundingBox;

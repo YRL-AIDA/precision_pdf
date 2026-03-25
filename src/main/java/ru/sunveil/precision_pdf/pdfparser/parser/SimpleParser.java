@@ -135,13 +135,13 @@ public class SimpleParser extends AbstractPdfBoxParser {
     protected PdfPage extractPage(PDPage page, int pageNumber, TextExtractionResult globalTextResult) {
         PdfPage pdfPage = new PdfPage();
         pdfPage.setPageNumber(pageNumber);
-        PDRectangle pdfbbox = page.getMediaBox();
+        PDRectangle pdfbbox = page.getCropBox();
         BoundingBox q = new BoundingBox(pdfbbox.getLowerLeftX(), pdfbbox.getLowerLeftY(), pdfbbox.getWidth(), pdfbbox.getHeight());
         pdfPage.setBoundingBox(q);
 
-        if (page.getMediaBox() != null) {
-            pdfPage.setWidth(page.getMediaBox().getWidth());
-            pdfPage.setHeight(page.getMediaBox().getHeight());
+        if (page.getCropBox() != null) {
+            pdfPage.setWidth(page.getCropBox().getWidth());
+            pdfPage.setHeight(page.getCropBox().getHeight());
         }
 
         if (extractionConfig.isExtractText() && globalTextResult != null) {

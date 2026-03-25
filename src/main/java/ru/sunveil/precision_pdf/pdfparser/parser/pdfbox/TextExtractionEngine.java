@@ -107,8 +107,7 @@ public class TextExtractionEngine extends PDFTextStripper {
             cropBoxOffsetY = cropBox.getLowerLeftY();
 
             currentPageNumber = i + 1;
-            PDRectangle pageSize = page.getMediaBox();
-            pageHeight = pageSize.getHeight();
+            pageHeight = cropBox.getHeight();
             order = -1;
             setStartPage(currentPageNumber);
             setEndPage(currentPageNumber);
@@ -351,7 +350,7 @@ public class TextExtractionEngine extends PDFTextStripper {
             minY = Math.min(minY, b.getY());
             maxX = Math.max(maxX, b.getX() + b.getWidth());
             maxY = Math.max(maxY, b.getY() + b.getHeight());
-            if (txt.length() > 0) txt.append(' ');
+            if (!txt.isEmpty()) txt.append(' ');
             txt.append(w.getText());
         }
         float width = maxX - minX;
@@ -364,7 +363,7 @@ public class TextExtractionEngine extends PDFTextStripper {
         line.setWords(new ArrayList<>(words));
         line.setLineHeight(calculateLineHeight(words));
         line.setOrder(order);
-        Word first = words.get(0);
+        Word first = words.getFirst();
         line.setFont(first.getFont());
         line.setColor(first.getColor());
         line.setSpaceWidth(first.getSpaceWidth());
@@ -424,7 +423,7 @@ public class TextExtractionEngine extends PDFTextStripper {
 
         Word word = new Word();
         word.setPageNumber(currentPageNumber);
-        word.setBoundingBox(new BoundingBox(left+cropBoxOffsetX, topY-cropBoxOffsetY, width, height));
+        word.setBoundingBox(new BoundingBox(left + cropBoxOffsetX, topY, width, height));
         word.setText(text);
         word.setFontName(styleTp.getFont().getName());
         word.setFontSize(styleTp.getFontSizeInPt());
@@ -548,9 +547,9 @@ public class TextExtractionEngine extends PDFTextStripper {
 
         for (TextPosition tp : positions) {
             float left = tp.getXDirAdj() + cropBoxOffsetX;
-            float top = convertToTopLeftY(tp.getYDirAdj() - tp.getHeightDir()) - cropBoxOffsetY;
+            float top = convertToTopLeftY(tp.getYDirAdj() - tp.getHeightDir());
             float right = tp.getXDirAdj() + tp.getWidthDirAdj() + cropBoxOffsetX;
-            float bottom = convertToTopLeftY(tp.getYDirAdj()) - cropBoxOffsetY;
+            float bottom = convertToTopLeftY(tp.getYDirAdj());
 
             // normalize top/bottom for this tp
             float tpMinY = Math.min(top, bottom);
@@ -580,7 +579,7 @@ public class TextExtractionEngine extends PDFTextStripper {
      * @return Y coordinate in top-left origin
      */
     private float convertToTopLeftY(float pdfY) {
-        return pageHeight - pdfY;
+        return pageHeight - (pdfY - cropBoxOffsetY);
     }
 
     /**

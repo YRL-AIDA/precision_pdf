@@ -68,7 +68,7 @@ public class VisibleRulingExtractor {
         float cropOffsetX = cropBox.getLowerLeftX();
         float cropOffsetY = cropBox.getLowerLeftY();
 
-        PDPage tempPage = new PDPage(pdPage.getMediaBox());
+        PDPage tempPage = new PDPage(pdPage.getCropBox());
         tempPage.setResources(pdPage.getResources());
         tempPage.setContents(newContents);
 
@@ -100,16 +100,16 @@ public class VisibleRulingExtractor {
             for (Ruling ruling : horizontalRulings) {
                 float x1 = cropOffsetX + ruling.x1 / 2;
                 float x2 = cropOffsetX + ruling.x2 / 2;
-                float y2 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y1 / 2;
-                float y1 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y2 / 2;
+                float y2 = cropOffsetY + pdPage.getCropBox().getHeight() - ruling.y1 / 2;
+                float y1 = cropOffsetY + pdPage.getCropBox().getHeight() - ruling.y2 / 2;
                 ruling.setLine(x1, y1, x2, y2);
             }
             resultRulings.addAll(horizontalRulings);
             for (Ruling ruling : verticalRulings) {
                 float x1 = cropOffsetX + ruling.x1 / 2;
                 float x2 = cropOffsetX + ruling.x2 / 2;
-                float y2 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y1 / 2;
-                float y1 = cropOffsetY + pdPage.getMediaBox().getHeight() - ruling.y2 / 2;
+                float y2 = cropOffsetY + pdPage.getCropBox().getHeight() - ruling.y1 / 2;
+                float y1 = cropOffsetY + pdPage.getCropBox().getHeight() - ruling.y2 / 2;
                 ruling.setLine(x1, y1, x2, y2);
             }
             resultRulings.addAll(verticalRulings);
