@@ -9,13 +9,12 @@ import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.graphics.PDXObject;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImage;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
-import org.apache.pdfbox.rendering.ImageType;
-import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.contentstream.operator.state.*;
+import org.apache.pdfbox.util.Matrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfImage;
@@ -31,14 +30,22 @@ import java.util.List;
 
 /**
  * Движок для извлечения изображений из PDF документов с использованием PDFBox
+ * с определением координат изображений на странице
  */
-public class ImageExtractionEngine implements ImageExtractor {
+public class ImageExtractionEngine extends PDFStreamEngine implements ImageExtractor {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageExtractionEngine.class);
 
     private final float imageDpi;
     private final int maxImageSize;
     private final boolean preserveQuality;
+
+    private PDPage currentPage;
+    private List<PdfImage> currentPageImages;
+    private int currentPageNumber;
+
+    private float pageWidth;
+    private float pageHeight;
 
     /**
      * Конструктор с параметрами по умолчанию
@@ -58,6 +65,14 @@ public class ImageExtractionEngine implements ImageExtractor {
         this.imageDpi = imageDpi;
         this.maxImageSize = maxImageSize;
         this.preserveQuality = preserveQuality;
+
+        // Добавляем необходимые операторы для обработки трансформаций и отрисовки
+        addOperator(new Concatenate(this));
+        addOperator(new DrawObject(this));
+        addOperator(new SetGraphicsStateParameters(this));
+        addOperator(new Save(this));
+        addOperator(new Restore(this));
+        addOperator(new SetMatrix(this));
     }
 
     @Override
@@ -88,18 +103,73 @@ public class ImageExtractionEngine implements ImageExtractor {
             return images;
         }
 
-        // Извлечение встроенных изображений
-        images.addAll(extractInlineImages(page, pageNumber));
+        this.currentPage = page;
+        this.currentPageNumber = pageNumber;
+        this.currentPageImages = new ArrayList<>();
 
-        // Извлечение XObject изображений
-        images.addAll(extractXObjectImages(page, pageNumber));
+        PDRectangle mediaBox = page.getMediaBox();
+        this.pageWidth = mediaBox.getWidth();
+        this.pageHeight = mediaBox.getHeight();
 
+        try {
+            processPage(page);
+        } catch (Exception e) {
+            logger.warn("Failed to process page {} for image positions: {}", pageNumber, e.getMessage());
+        }
+
+        if (currentPageImages.isEmpty()) {
+            logger.debug("No images found via stream processing, trying alternative extraction for page {}", pageNumber);
+
+            images.addAll(extractInlineImages(page, pageNumber));
+
+            images.addAll(extractXObjectImages(page, pageNumber));
+        } else {
+            images.addAll(currentPageImages);
+        }
+
+        this.currentPage = null;
+        this.currentPageImages = null;
 
         return images;
     }
 
+    @Override
+    protected void processOperator(Operator operator, List<COSBase> operands) throws IOException {
+        String operation = operator.getName();
+
+        if ("Do".equals(operation)) {
+            COSName objectName = (COSName) operands.get(0);
+            PDXObject xobject = getResources().getXObject(objectName);
+
+            if (xobject instanceof PDImageXObject) {
+                PDImageXObject image = (PDImageXObject) xobject;
+
+                Matrix ctmNew = getGraphicsState().getCurrentTransformationMatrix();
+
+                float pdfX = ctmNew.getTranslateX();
+                float pdfY = ctmNew.getTranslateY();
+                float pdfWidth = ctmNew.getScalingFactorX();
+                float pdfHeight = ctmNew.getScalingFactorY();
+
+                BoundingBox boundingBox = new BoundingBox(pdfX, pdfY, pdfWidth, pdfHeight);
+
+                PdfImage pdfImage = convertPdImageToPdfImage(image, currentPageNumber);
+                pdfImage.setBoundingBox(boundingBox);
+
+                currentPageImages.add(pdfImage);
+                logger.debug("Extracted image with bounding box: {}", boundingBox);
+
+            } else if (xobject instanceof PDFormXObject) {
+                PDFormXObject form = (PDFormXObject) xobject;
+                showForm(form);
+            }
+        } else {
+            super.processOperator(operator, operands);
+        }
+    }
+
     /**
-     * Извлекает встроенные изображения со страницы
+     * Извлекает встроенные изображения со страницы (альтернативный метод, если stream engine не сработал)
      */
     private List<PdfImage> extractInlineImages(PDPage page, int pageNumber) throws IOException {
         List<PdfImage> images = new ArrayList<>();
@@ -116,6 +186,7 @@ public class ImageExtractionEngine implements ImageExtractor {
             if (xObject instanceof PDImageXObject) {
                 PDImageXObject pdImage = (PDImageXObject) xObject;
                 PdfImage pdfImage = convertPdImageToPdfImage(pdImage, pageNumber);
+                pdfImage.setBoundingBox(createDefaultBoundingBox(pdImage));
                 images.add(pdfImage);
 
                 logger.debug("Extracted inline image: {}x{}, format: {}",
@@ -127,7 +198,7 @@ public class ImageExtractionEngine implements ImageExtractor {
     }
 
     /**
-     * Извлекает XObject изображения со страницы
+     * Извлекает XObject изображения со страницы (альтернативный метод)
      */
     private List<PdfImage> extractXObjectImages(PDPage page, int pageNumber) {
         List<PdfImage> images = new ArrayList<>();
@@ -145,6 +216,7 @@ public class ImageExtractionEngine implements ImageExtractor {
                 if (xObject instanceof PDImageXObject) {
                     PDImageXObject pdImage = (PDImageXObject) xObject;
                     PdfImage pdfImage = convertPdImageToPdfImage(pdImage, pageNumber);
+                    pdfImage.setBoundingBox(createDefaultBoundingBox(pdImage));
                     images.add(pdfImage);
 
                     logger.debug("Extracted XObject image: {}x{}, format: {}",
@@ -180,6 +252,7 @@ public class ImageExtractionEngine implements ImageExtractor {
             if (xObject instanceof PDImageXObject) {
                 PDImageXObject pdImage = (PDImageXObject) xObject;
                 PdfImage pdfImage = convertPdImageToPdfImage(pdImage, pageNumber);
+                pdfImage.setBoundingBox(createDefaultBoundingBox(pdImage));
                 images.add(pdfImage);
 
                 logger.debug("Extracted image from form: {}x{}, format: {}",
@@ -190,32 +263,6 @@ public class ImageExtractionEngine implements ImageExtractor {
                 List<PdfImage> nestedImages = extractImagesFromForm(nestedForm, pageNumber);
                 images.addAll(nestedImages);
             }
-        }
-
-        return images;
-    }
-
-    /**
-     * Рендерит всю страницу как изображение
-     */
-    private List<PdfImage> renderPageAsImage(PDDocument document, PDPage page, int pageNumber) throws IOException {
-        List<PdfImage> images = new ArrayList<>();
-
-        try {
-            PDFRenderer renderer = new PDFRenderer(document);
-            BufferedImage bufferedImage = renderer.renderImageWithDPI(pageNumber - 1, imageDpi, ImageType.RGB);
-
-            // Масштабирование изображения если необходимо
-            bufferedImage = scaleImageIfNeeded(bufferedImage);
-
-            PdfImage pdfImage = convertBufferedImageToPdfImage(bufferedImage, pageNumber);
-            images.add(pdfImage);
-
-            logger.debug("Rendered page as image: {}x{}, format: {}",
-                    pdfImage.getWidth(), pdfImage.getHeight(), pdfImage.getImageFormat());
-
-        } catch (Exception e) {
-            logger.warn("Failed to render page {} as image: {}", pageNumber, e.getMessage());
         }
 
         return images;
@@ -236,9 +283,6 @@ public class ImageExtractionEngine implements ImageExtractor {
         pdfImage.setColorSpace(pdImage.getColorSpace().getName());
         pdfImage.setId(generateImageId(pageNumber, pdfImage.getImageFormat()));
 
-        // Установка ограничивающей рамки
-        pdfImage.setBoundingBox(createImageBoundingBox(pdImage, pageNumber));
-
         // Получение данных изображения
         pdfImage.setImageData(getImageData(pdImage));
 
@@ -246,32 +290,16 @@ public class ImageExtractionEngine implements ImageExtractor {
     }
 
     /**
-     * Конвертирует BufferedImage в PdfImage
+     * Создает ограничивающую рамку по умолчанию для изображений без координат
      */
-    private PdfImage convertBufferedImageToPdfImage(BufferedImage bufferedImage, int pageNumber) throws IOException {
-        PdfImage pdfImage = new PdfImage();
-
-        pdfImage.setPageNumber(pageNumber);
-        pdfImage.setWidth(bufferedImage.getWidth());
-        pdfImage.setHeight(bufferedImage.getHeight());
-        pdfImage.setImageFormat("PNG");
-        pdfImage.setResolution(imageDpi);
-        pdfImage.setColorSpace("RGB");
-        pdfImage.setId(generateImageId(pageNumber, "PNG"));
-
-        // Создание ограничивающей рамки для всей страницы
-        pdfImage.setBoundingBox(new BoundingBox(0, 0, bufferedImage.getWidth(), bufferedImage.getHeight()));
-
-        // Конвертация в байтовый массив
-        pdfImage.setImageData(convertBufferedImageToByteArray(bufferedImage, "PNG"));
-
-        return pdfImage;
+    private BoundingBox createDefaultBoundingBox(PDImageXObject pdImage) {
+        return new BoundingBox(0, 0, pdImage.getWidth(), pdImage.getHeight());
     }
 
     /**
      * Определяет формат изображения
      */
-    private String determineImageFormat(PDImage pdImage) {
+    private String determineImageFormat(PDImageXObject pdImage) {
         try {
             String suffix = pdImage.getSuffix();
             if (suffix != null && !suffix.isEmpty()) {
@@ -286,15 +314,6 @@ public class ImageExtractionEngine implements ImageExtractor {
     }
 
     /**
-     * Создает ограничивающую рамку для изображения
-     */
-    private BoundingBox createImageBoundingBox(PDImageXObject pdImage, int pageNumber) {
-        // В реальной реализации здесь должна быть логика определения позиции изображения на странице
-        // Для упрощения возвращаем рамку с размерами изображения
-        return new BoundingBox(0, 0, pdImage.getWidth(), pdImage.getHeight());
-    }
-
-    /**
      * Получает данные изображения в виде байтового массива
      */
     private byte[] getImageData(PDImageXObject pdImage) throws IOException {
@@ -305,50 +324,6 @@ public class ImageExtractionEngine implements ImageExtractor {
         ImageIO.write(bufferedImage, format, baos);
 
         return baos.toByteArray();
-    }
-
-    /**
-     * Конвертирует BufferedImage в байтовый массив
-     */
-    private byte[] convertBufferedImageToByteArray(BufferedImage image, String format) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ImageIO.write(image, format, baos);
-        return baos.toByteArray();
-    }
-
-    /**
-     * Масштабирует изображение если оно превышает максимальный размер
-     */
-    private BufferedImage scaleImageIfNeeded(BufferedImage originalImage) {
-        int width = originalImage.getWidth();
-        int height = originalImage.getHeight();
-
-        if (width <= maxImageSize && height <= maxImageSize) {
-            return originalImage;
-        }
-
-        double scaleFactor = Math.min(
-                (double) maxImageSize / width,
-                (double) maxImageSize / height
-        );
-
-        int newWidth = (int) (width * scaleFactor);
-        int newHeight = (int) (height * scaleFactor);
-
-        BufferedImage scaledImage = new BufferedImage(newWidth, newHeight, originalImage.getType());
-        java.awt.Graphics2D g2d = scaledImage.createGraphics();
-
-        if (preserveQuality) {
-            g2d.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
-                    java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        }
-
-        g2d.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
-        g2d.dispose();
-
-        logger.debug("Scaled image from {}x{} to {}x{}", width, height, newWidth, newHeight);
-
-        return scaledImage;
     }
 
     /**

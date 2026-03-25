@@ -3,12 +3,12 @@ package ru.sunveil.precision_pdf.pdfparser.export;
 import org.springframework.stereotype.Component;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfDocument;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
-import ru.sunveil.precision_pdf.pdfparser.model.Ruling;
-import ru.sunveil.precision_pdf.pdfparser.model.Word;
 import ru.sunveil.precision_pdf.pdfparser.model.Table;
 import ru.sunveil.precision_pdf.pdfparser.model.TableCell;
 import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfImage;
+import ru.sunveil.precision_pdf.pdfparser.model.Word;
+import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 
 import java.util.ArrayList;
 import java.util.Base64;
@@ -39,48 +39,64 @@ public class HtmlExporter implements Exporter {
                     .append(page.getHeight())
                     .append("pt;\">\n");
 
-            List<PageElement> elements = new ArrayList<>();
+            List<PageElement> textElements = new ArrayList<>();
+            List<PdfImage> images = new ArrayList<>();
 
             for (TextLine tl : page.getTextLines()) {
                 if (tl == null || tl.getBoundingBox() == null) continue;
-
                 boolean insideTable = false;
                 for (Table table : page.getTables()) {
-                    if (table == null || table.getBoundingBox() == null) continue;
-                    if (table.getBoundingBox().intersects(tl.getBoundingBox())) {
+                    if (table != null && table.getBoundingBox() != null &&
+                            table.getBoundingBox().intersects(tl.getBoundingBox())) {
                         insideTable = true;
                         break;
                     }
                 }
-
                 if (!insideTable) {
-                    elements.add(new PageElement(PageElementType.TEXT_LINE, tl, tl.getOrder()));
+                    textElements.add(new PageElement(PageElementType.TEXT_LINE, tl, tl.getOrder()));
                 }
             }
 
             for (Table table : page.getTables()) {
                 if (table == null || table.getBoundingBox() == null) continue;
-                elements.add(new PageElement(PageElementType.TABLE, table, table.getOrder()));
+                textElements.add(new PageElement(PageElementType.TABLE, table, table.getOrder()));
             }
 
             for (PdfImage image : page.getImages()) {
                 if (image == null || image.getBoundingBox() == null) continue;
-                elements.add(new PageElement(PageElementType.IMAGE, image, 0)); // Images don't have order, so use 0
+                images.add(image);
             }
 
-            elements.sort(Comparator.comparingInt(e -> e.order));
+            textElements.sort(Comparator.comparingInt(e -> e.order));
 
-            for (PageElement element : elements) {
+            List<PageElement> finalElements = new ArrayList<>(textElements);
+
+            for (PdfImage image : images) {
+                double imageTop = image.getBoundingBox().getY() + image.getBoundingBox().getHeight();
+
+                // Находим индекс для вставки (первое место, где элемент ниже изображения)
+                int insertIndex = 0;
+                for (int i = 0; i < finalElements.size(); i++) {
+                    var elem = finalElements.get(i);
+                    var bb = getBoundingBox(elem.element);
+                    if (bb != null) {
+                        double elemTop = bb.getY() + bb.getHeight();
+                        // Если элемент ниже изображения вставляем перед ним
+                        if (elemTop < imageTop - 5.0) {  // tolerance 5pt
+                            insertIndex = i;
+                            break;
+                        }
+                        insertIndex = i + 1;
+                    }
+                }
+                finalElements.add(insertIndex, new PageElement(PageElementType.IMAGE, image, 0));
+            }
+
+            for (PageElement element : finalElements) {
                 switch (element.type) {
-                    case TEXT_LINE:
-                        renderTextLine((TextLine) element.element, sb);
-                        break;
-                    case TABLE:
-                        renderTable((Table) element.element, sb);
-                        break;
-                    case IMAGE:
-                        renderImage((PdfImage) element.element, sb);
-                        break;
+                    case TEXT_LINE -> renderTextLine((TextLine) element.element, sb);
+                    case TABLE -> renderTable((Table) element.element, sb);
+                    case IMAGE -> renderImage((PdfImage) element.element, sb);
                 }
             }
 
@@ -91,17 +107,25 @@ public class HtmlExporter implements Exporter {
         return sb.toString();
     }
 
+    /**
+     * Получает BoundingBox из элемента любого типа
+     */
+    private BoundingBox getBoundingBox(Object element) {
+        return switch (element) {
+            case TextLine tl -> tl.getBoundingBox();
+            case Table table -> table.getBoundingBox();
+            case PdfImage img -> img.getBoundingBox();
+            default -> null;
+        };
+    }
+
     private void renderTextLine(TextLine tl, StringBuilder sb) {
         List<String> classes = new ArrayList<>();
         classes.add("textline");
 
         if (tl.getFont() != null) {
-            if (tl.getFont().isBold()) {
-                classes.add("bold");
-            }
-            if (tl.getFont().isItalic()) {
-                classes.add("italic");
-            }
+            if (tl.getFont().isBold()) classes.add("bold");
+            if (tl.getFont().isItalic()) classes.add("italic");
         }
 
         sb.append("<div class=\"").append(String.join(" ", classes)).append("\">")
@@ -114,8 +138,7 @@ public class HtmlExporter implements Exporter {
         sb.append("<table style=\"border-collapse:collapse;\">");
 
         if (table.getRows() != null) {
-            List<List<TableCell>> rows = table.getRows();
-            for (List<TableCell> row : rows) {
+            for (List<TableCell> row : table.getRows()) {
                 sb.append("<tr>");
                 if (row != null) {
                     for (TableCell cell : row) {
@@ -123,21 +146,14 @@ public class HtmlExporter implements Exporter {
 
                         int colspan = Math.max(1, cell.getColSpan());
                         int rowspan = Math.max(1, cell.getRowSpan());
-
                         String cellStyle = "border:1px solid #ccc;padding:4px;vertical-align:top;";
                         List<String> classes = new ArrayList<>();
 
                         if (!cell.getContentBlocks().isEmpty()) {
                             Object firstBlock = cell.getContentBlocks().getFirst();
-                            if (firstBlock instanceof Word wordInCell) {
-                                if (wordInCell.getFont() != null) {
-                                    if (wordInCell.getFont().isBold()) {
-                                        classes.add("bold");
-                                    }
-                                    if (wordInCell.getFont().isItalic()) {
-                                        classes.add("italic");
-                                    }
-                                }
+                            if (firstBlock instanceof Word wordInCell && wordInCell.getFont() != null) {
+                                if (wordInCell.getFont().isBold()) classes.add("bold");
+                                if (wordInCell.getFont().isItalic()) classes.add("italic");
                             }
                         }
 
@@ -163,18 +179,14 @@ public class HtmlExporter implements Exporter {
     private void renderImage(PdfImage image, StringBuilder sb) {
         if (image.getImageData() == null || image.getImageData().length == 0) return;
 
-        String base64Data = java.util.Base64.getEncoder().encodeToString(image.getImageData());
+        String base64Data = Base64.getEncoder().encodeToString(image.getImageData());
         String mimeType = "image/" + (image.getImageFormat() != null ? image.getImageFormat().toLowerCase() : "png");
-
-        // Получаем bounding box
         var bbox = image.getBoundingBox();
-
-        // Если изображение слишком большое, масштабируем его
-        double maxWidth = 800; // максимальная ширина в пикселях
-        double maxHeight = 600; // максимальная высота в пикселях
 
         double width = bbox.getWidth();
         double height = bbox.getHeight();
+        double maxWidth = 800;
+        double maxHeight = 600;
 
         if (width > maxWidth || height > maxHeight) {
             double scale = Math.min(maxWidth / width, maxHeight / height);
@@ -182,14 +194,9 @@ public class HtmlExporter implements Exporter {
             height = height * scale;
         }
 
-        sb.append("<div style=\"position:relative;display:inline-block;margin:10px;\">")
-                .append("<img src=\"data:")
-                .append(mimeType)
-                .append(";base64,")
-                .append(base64Data)
-                .append("\" style=\"width:")
-                .append(width)
-                .append("px;height:auto;max-width:100%;border:1px solid #ddd;\"")
+        sb.append("<div style=\"display:inline-block;margin:8px 0;padding:3px;\">")
+                .append("<img src=\"data:").append(mimeType).append(";base64,").append(base64Data)
+                .append("\" style=\"width:").append(width).append("px;height:auto;max-width:100%;border:1px solid #ddd;\"")
                 .append(" alt=\"PDF Image\">")
                 .append("<div style=\"font-size:10px;color:#666;text-align:center;\">")
                 .append("Image (").append(Math.round(bbox.getWidth())).append("x").append(Math.round(bbox.getHeight())).append(" pt)")
@@ -223,9 +230,9 @@ public class HtmlExporter implements Exporter {
     private String escapeHtml(String str) {
         if (str == null) return "";
         return str.replace("&", "&amp;")
-                  .replace("<", "&lt;")
-                  .replace(">", "&gt;")
-                  .replace("\"", "&quot;")
-                  .replace("'", "&#39;");
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
     }
 }
