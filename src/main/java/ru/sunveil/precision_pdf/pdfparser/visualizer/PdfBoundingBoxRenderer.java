@@ -17,7 +17,7 @@ import ru.sunveil.precision_pdf.pdfparser.table.BorderedTableExtractor;
 
 public class PdfBoundingBoxRenderer {
     public enum BoxType {
-        WORDS, LINES, CHUNKS, RULINGS, AREAS, TABLES
+        WORDS, LINES, CHUNKS, RULINGS, AREAS, TABLES, SEGMENTS
     }
     /**
      * Нарисовать bounding box слов/линий/чанков
@@ -147,6 +147,20 @@ public class PdfBoundingBoxRenderer {
                                     contentStream.stroke();
                                 }
                             }
+                        }
+                    }
+
+                    if (boxType == BoxType.SEGMENTS) {
+                        contentStream.setStrokingColor(Color.MAGENTA);
+                        contentStream.setLineWidth(0.6f);
+                        for (PdfSegment segment : pdfPage.getSegments()) {
+                            if (segment == null || segment.getBoundingBox() == null || !segment.getBoundingBox().isValid()) {
+                                continue;
+                            }
+                            BoundingBox bb = segment.getBoundingBox();
+                            contentStream.addRect(bb.getX(), bb.getY(), bb.getWidth(), bb.getHeight());
+                            contentStream.stroke();
+                            drawOrderText(contentStream, segment.getLabel(), bb.getX(), bb.getY() + bb.getHeight() + 2);
                         }
                     }
                 }

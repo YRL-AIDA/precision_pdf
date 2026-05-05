@@ -14,21 +14,19 @@ public class PdfParseFactory {
     }
 
     public PdfParser createParser() {
-        return createParser(ParserType.fromString(parserConfig.getParserType()));
+        return createParser(parserConfig.getParserType());
     }
 
-    public PdfParser createParser(ParserType parserType) {
+    public PdfParser createParser(String parserType) {
         return createParser(parserType, parserConfig);
     }
 
-    public PdfParser createParser(ParserType parserType, ParserConfig config) {
-        switch (parserType) {
-            case PRECISION:
-                return createPdfBoxParser(config);
-            case DEFAULT:
-            default:
-                return createPdfBoxParser(config);
+    public PdfParser createParser(String parserType, ParserConfig config) {
+        String normalized = parserType == null ? "" : parserType.trim().toLowerCase();
+        if ("gnn-segments".equals(normalized) || "gnn".equals(normalized) || "segments".equals(normalized)) {
+            return new GnnSegmentsParser();
         }
+        return createPdfBoxParser(config);
     }
 
     private PdfParser createPdfBoxParser(ParserConfig config) {

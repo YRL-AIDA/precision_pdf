@@ -55,12 +55,13 @@ public class PrecisionPdfController {
             @RequestParam(value = "extractImages", required = false) Boolean extractImages,
             @RequestParam(value = "extractTables", required = false) Boolean extractTables,
             @RequestParam(value = "extractMetadata", required = false) Boolean extractMetadata,
+            @RequestParam(value = "parser", required = false) String parser,
             @RequestParam(value = "outputFormat", defaultValue = "JSON") String outputFormat) {
 
         long startTime = System.currentTimeMillis();
 
         try {
-            ExtractionConfig config = createCustomConfig(extractText, extractImages, extractTables, extractMetadata);
+            ExtractionConfig config = createCustomConfig(extractText, extractImages, extractTables, extractMetadata, parser);
 
             config.setOutputFormat(outputFormat);
 
@@ -160,12 +161,16 @@ public class PrecisionPdfController {
     }
 
     private ExtractionConfig createCustomConfig(Boolean extractText, Boolean extractImages,
-                                                Boolean extractTables, Boolean extractMetadata) {
+                                                Boolean extractTables, Boolean extractMetadata,
+                                                String parser) {
         ExtractionConfig config = new ExtractionConfig();
         config.setExtractText(extractText != null ? extractText : true);
         config.setExtractImages(extractImages != null ? extractImages : false);
         config.setExtractTables(extractTables != null ? extractTables : false);
         config.setExtractMetadata(extractMetadata != null ? extractMetadata : true);
+        if (parser != null && !parser.isBlank()) {
+            config.setParser(parser);
+        }
         config.setPreserveLayout(true);
         return config;
     }

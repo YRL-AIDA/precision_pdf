@@ -599,6 +599,14 @@
             </select>
         </div>
 
+        <div class="option-item" style="margin-top: 0.75rem;">
+            <label for="parserType">Парсер:</label>
+            <select id="parserType">
+                <option value="precision-pdf">Precision</option>
+                <option value="gnn-segments">GNN Segments</option>
+            </select>
+        </div>
+
         <div style="margin-top: 1.5rem; text-align: center;">
             <button class="btn btn-success" id="processBtn" disabled>Обработать PDF</button>
             <button class="btn btn-secondary" id="metadataOnlyBtn" disabled>Только метаданные</button>
@@ -656,6 +664,7 @@
                 <div class="viz-tab" data-viz-tab="rulings">Рулинги</div>
                 <div class="viz-tab" data-viz-tab="areas">области таблиц</div>
                 <div class="viz-tab" data-viz-tab="tables">таблицы</div>
+                <div class="viz-tab" data-viz-tab="segments">сегменты</div>
             </div>
 
             <div class="pdf-container">
@@ -675,6 +684,7 @@
                 <iframe class="pdf-viewer" id="pdfViewerRulings" data-type="rulings"></iframe>
                 <iframe class="pdf-viewer" id="pdfViewerAreas" data-type="areas"></iframe>
                 <iframe class="pdf-viewer" id="pdfViewerTables" data-type="tables"></iframe>
+                <iframe class="pdf-viewer" id="pdfViewerSegments" data-type="segments"></iframe>
             </div>
 
             <div class="viz-controls">
@@ -789,7 +799,8 @@
         chunks: { loaded: false, url: null, element: null },
         rulings: { loaded: false, url: null, element: null},
         areas: {loaded: false, url: null, element: null},
-        tables: {loaded: false, url: null, element: null}
+        tables: {loaded: false, url: null, element: null},
+        segments: {loaded: false, url: null, element: null}
     };
 
     let currentVizType = 'words';
@@ -818,6 +829,7 @@
         visualizationCache.rulings.element = document.getElementById('pdfViewerRulings');
         visualizationCache.areas.element = document.getElementById('pdfViewerAreas');
         visualizationCache.tables.element = document.getElementById('pdfViewerTables');
+        visualizationCache.segments.element = document.getElementById('pdfViewerSegments');
 
         // Элементы вкладок
         const tabs = document.querySelectorAll('.tab');
@@ -839,7 +851,7 @@
             noVizMessage.classList.remove('active');
 
 
-            const types = ['words', 'lines', 'chunks', 'rulings', 'areas', 'tables'];
+            const types = ['words', 'lines', 'chunks', 'rulings', 'areas', 'tables', 'segments'];
             const loadPromises = [];
 
             for (const type of types) {
@@ -1014,6 +1026,7 @@
                 const extractTables = document.getElementById('extractTables').checked;
                 const extractMetadata = document.getElementById('extractMetadata').checked;
                 const outputFormat = document.getElementById('outputFormat').value;
+                const parserType = document.getElementById('parserType').value;
 
                 currentOutputFormat = outputFormat;
 
@@ -1024,6 +1037,7 @@
                 formData.append('extractImages', extractImages);
                 formData.append('extractTables', extractTables);
                 formData.append('extractMetadata', extractMetadata);
+                formData.append('parser', parserType);
                 formData.append('outputFormat', outputFormat);
 
                 // Отправить запрос к API

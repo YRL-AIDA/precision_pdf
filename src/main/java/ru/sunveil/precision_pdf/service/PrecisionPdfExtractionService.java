@@ -64,7 +64,7 @@ public class PrecisionPdfExtractionService {
 
             logger.debug("Created temporary file: {}", tempFile.getAbsolutePath());
 
-            PdfParser parser = pdfParseFactory.createParser();
+            PdfParser parser = createParser(extractionConfig);
             PdfDocument document = parseWithConfig(parser, tempFile, extractionConfig);
 
             lastDocument = document;
@@ -114,7 +114,7 @@ public class PrecisionPdfExtractionService {
             logger.info("Starting PDF parsing for file: {}", multipartFile.getOriginalFilename());
 
             tempFile = convertMultipartFileToTempFile(multipartFile);
-            PdfParser parser = pdfParseFactory.createParser();
+            PdfParser parser = createParser(extractionConfig);
             PdfDocument document = parseWithConfig(parser, tempFile, extractionConfig);
 
             long processingTime = System.currentTimeMillis() - startTime;
@@ -130,7 +130,7 @@ public class PrecisionPdfExtractionService {
 
     public PdfDocument parsePdf(File pdfFile, ExtractionConfig extractionConfig) {
         try {
-            PdfParser parser = pdfParseFactory.createParser();
+            PdfParser parser = createParser(extractionConfig);
             return parseWithConfig(parser, pdfFile, extractionConfig);
         } catch (Exception e) {
             logger.error("Failed to parse PDF file: {}", pdfFile.getAbsolutePath(), e);
@@ -192,7 +192,7 @@ public class PrecisionPdfExtractionService {
         try {
             tempFile = convertMultipartFileToTempFile(multipartFile);
             // Простая проверка - пытаемся создать парсер и проверить файл
-            PdfParser parser = pdfParseFactory.createParser();
+            PdfParser parser = createParser(extractionConfig);
             // Если не выброшено исключение, считаем файл валидным
             return true;
         } catch (Exception e) {
@@ -219,6 +219,13 @@ public class PrecisionPdfExtractionService {
             logger.error("Failed to parse PDF with config", e);
             throw new PdfParseException("PDF parsing failed: " + e.getMessage(), e);
         }
+    }
+
+    private PdfParser createParser(ExtractionConfig config) {
+        if (config != null && config.getParser() != null && !config.getParser().isBlank()) {
+            return pdfParseFactory.createParser(config.getParser());
+        }
+        return pdfParseFactory.createParser();
     }
 
     private File convertMultipartFileToTempFile(MultipartFile multipartFile) throws IOException {
