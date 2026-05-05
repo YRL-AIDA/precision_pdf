@@ -17,7 +17,7 @@ import ru.sunveil.precision_pdf.pdfparser.table.BorderedTableExtractor;
 
 public class PdfBoundingBoxRenderer {
     public enum BoxType {
-        WORDS, LINES, CHUNKS, RULINGS, AREAS, TABLES, SEGMENTS
+        WORDS, LINES, CHUNKS, RULINGS, AREAS, TABLES, SEGMENTS, ROWS_JSON, TABLE_DEBUG
     }
     /**
      * Нарисовать bounding box слов/линий/чанков
@@ -138,7 +138,10 @@ public class PdfBoundingBoxRenderer {
                             for (List<TableCell> row : rows) {
                                 //                                if (row == null) continue;
                                 for (TableCell cell : row) {
+                                    if (cell == null) continue;
+                                    if (cell.getContent() == null || cell.getContent().isBlank()) continue;
                                     BoundingBox cellBb = cell.getBoundingBox();
+                                    if (cellBb == null || !cellBb.isValid()) continue;
                                     float cellX = cellBb.getX();
                                     float cellY = pageHeight - cellBb.getY() - cellBb.getHeight();
                                     float cellWidth = cellBb.getWidth();
@@ -163,6 +166,52 @@ public class PdfBoundingBoxRenderer {
                             drawOrderText(contentStream, segment.getLabel(), bb.getX(), bb.getY() + bb.getHeight() + 2);
                         }
                     }
+
+                    if (boxType == BoxType.ROWS_JSON) {
+                        contentStream.setStrokingColor(Color.ORANGE);
+                        contentStream.setLineWidth(0.5f);
+                        for (BoundingBox bb : pdfPage.getJsonRows()) {
+                            if (bb == null || !bb.isValid()) continue;
+                            contentStream.addRect(bb.getX(), bb.getY(), bb.getWidth(), bb.getHeight());
+                            contentStream.stroke();
+                        }
+                    }
+
+                    if (boxType == BoxType.TABLE_DEBUG) {
+                        // Table area (red), raw json rows (orange), final cells (blue)
+                        contentStream.setStrokingColor(Color.RED);
+                        contentStream.setLineWidth(0.8f);
+                        for (Table table : pdfPage.getTables()) {
+                            if (table == null || table.getBoundingBox() == null || !table.getBoundingBox().isValid()) continue;
+                            BoundingBox bb = table.getBoundingBox();
+                            contentStream.addRect(bb.getX(), bb.getY(), bb.getWidth(), bb.getHeight());
+                            contentStream.stroke();
+                        }
+
+                        contentStream.setStrokingColor(Color.ORANGE);
+                        contentStream.setLineWidth(0.45f);
+                        for (BoundingBox bb : pdfPage.getJsonRows()) {
+                            if (bb == null || !bb.isValid()) continue;
+                            contentStream.addRect(bb.getX(), bb.getY(), bb.getWidth(), bb.getHeight());
+                            contentStream.stroke();
+                        }
+
+                        contentStream.setStrokingColor(Color.BLUE);
+                        contentStream.setLineWidth(0.35f);
+                        for (Table table : pdfPage.getTables()) {
+                            if (table == null || table.getRows() == null) continue;
+                            for (List<TableCell> row : table.getRows()) {
+                                if (row == null) continue;
+                                for (TableCell cell : row) {
+                                    if (cell == null || cell.getBoundingBox() == null || !cell.getBoundingBox().isValid()) continue;
+                                    BoundingBox cellBb = cell.getBoundingBox();
+                                    contentStream.addRect(cellBb.getX(), cellBb.getY(), cellBb.getWidth(), cellBb.getHeight());
+                                    contentStream.stroke();
+                                }
+                            }
+                        }
+                    }
+
                 }
             }
             document.save(outputPdf);

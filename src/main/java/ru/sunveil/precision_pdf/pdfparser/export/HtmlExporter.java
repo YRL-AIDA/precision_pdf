@@ -3,17 +3,23 @@ package ru.sunveil.precision_pdf.pdfparser.export;
 import org.springframework.stereotype.Component;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfDocument;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfPage;
+import ru.sunveil.precision_pdf.pdfparser.model.Header;
+import ru.sunveil.precision_pdf.pdfparser.model.OtherBlock;
+import ru.sunveil.precision_pdf.pdfparser.model.Paragraph;
 import ru.sunveil.precision_pdf.pdfparser.model.Table;
 import ru.sunveil.precision_pdf.pdfparser.model.TableCell;
 import ru.sunveil.precision_pdf.pdfparser.model.TextLine;
 import ru.sunveil.precision_pdf.pdfparser.model.PdfImage;
 import ru.sunveil.precision_pdf.pdfparser.model.Word;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
+import ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity;
 
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class HtmlExporter implements Exporter {
@@ -27,6 +33,9 @@ public class HtmlExporter implements Exporter {
         sb.append(".page{position:relative;margin:1rem auto; border:1px solid #ccc; overflow-y: visible;}\n");
         sb.append(".word{position:absolute;white-space:pre;}\n");
         sb.append(".textline{white-space:pre-wrap;overflow:hidden;}\n");
+        sb.append(".header-block{font-weight:700;font-size:1.1em;margin:0.2rem 0;}\n");
+        sb.append(".paragraph-block{margin:0.2rem 0;}\n");
+        sb.append(".other-block{margin:0.2rem 0;color:#333;}\n");
         sb.append(".table-wrapper{overflow:auto;}\n");
         sb.append(".bold{font-weight:bold;}\n");
         sb.append(".italic{font-style:italic;}\n");
@@ -42,18 +51,36 @@ public class HtmlExporter implements Exporter {
             List<PageElement> textElements = new ArrayList<>();
             List<PdfImage> images = new ArrayList<>();
 
-            for (TextLine tl : page.getTextLines()) {
-                if (tl == null || tl.getBoundingBox() == null) continue;
-                boolean insideTable = false;
-                for (Table table : page.getTables()) {
-                    if (table != null && table.getBoundingBox() != null &&
-                            table.getBoundingBox().intersects(tl.getBoundingBox())) {
-                        insideTable = true;
-                        break;
+            if (hasSemanticBlocks(page)) {
+                for (Header header : page.getHeaders()) {
+                    if (header != null && header.getBoundingBox() != null) {
+                        textElements.add(new PageElement(PageElementType.HEADER, header, header.getOrder()));
                     }
                 }
-                if (!insideTable) {
-                    textElements.add(new PageElement(PageElementType.TEXT_LINE, tl, tl.getOrder()));
+                for (Paragraph paragraph : page.getParagraphs()) {
+                    if (paragraph != null && paragraph.getBoundingBox() != null) {
+                        textElements.add(new PageElement(PageElementType.PARAGRAPH, paragraph, paragraph.getOrder()));
+                    }
+                }
+                for (OtherBlock otherBlock : page.getOtherBlocks()) {
+                    if (otherBlock != null && otherBlock.getBoundingBox() != null) {
+                        textElements.add(new PageElement(PageElementType.OTHER_BLOCK, otherBlock, otherBlock.getOrder()));
+                    }
+                }
+            } else {
+                for (TextLine tl : page.getTextLines()) {
+                    if (tl == null || tl.getBoundingBox() == null) continue;
+                    boolean insideTable = false;
+                    for (Table table : page.getTables()) {
+                        if (table != null && table.getBoundingBox() != null &&
+                                table.getBoundingBox().intersects(tl.getBoundingBox())) {
+                            insideTable = true;
+                            break;
+                        }
+                    }
+                    if (!insideTable) {
+                        textElements.add(new PageElement(PageElementType.TEXT_LINE, tl, tl.getOrder()));
+                    }
                 }
             }
 
@@ -70,23 +97,32 @@ public class HtmlExporter implements Exporter {
             textElements.sort(Comparator.comparingInt(e -> e.order));
 
             List<PageElement> finalElements = new ArrayList<>(textElements);
+            boolean gnnLikePage = page.getSegments() != null && !page.getSegments().isEmpty();
 
             for (PdfImage image : images) {
                 double imageTop = image.getBoundingBox().getY() + image.getBoundingBox().getHeight();
-
-                // Находим индекс для вставки (первое место, где элемент ниже изображения)
+                double imageCenterY = image.getBoundingBox().getCenterY();
                 int insertIndex = 0;
                 for (int i = 0; i < finalElements.size(); i++) {
                     var elem = finalElements.get(i);
                     var bb = getBoundingBox(elem.element);
                     if (bb != null) {
-                        double elemTop = bb.getY() + bb.getHeight();
-                        // Если элемент ниже изображения вставляем перед ним
-                        if (elemTop < imageTop - 5.0) {  // tolerance 5pt
-                            insertIndex = i;
-                            break;
+                        if (gnnLikePage) {
+                            double elemCenterY = bb.getCenterY();
+                            if (elemCenterY < imageCenterY - 3.0) {
+                                insertIndex = i;
+                                break;
+                            }
+                            insertIndex = i + 1;
+                        } else {
+                            // Precision flow: preserve legacy top-based placement.
+                            double elemTop = bb.getY() + bb.getHeight();
+                            if (elemTop < imageTop - 5.0) {
+                                insertIndex = i;
+                                break;
+                            }
+                            insertIndex = i + 1;
                         }
-                        insertIndex = i + 1;
                     }
                 }
                 finalElements.add(insertIndex, new PageElement(PageElementType.IMAGE, image, 0));
@@ -95,6 +131,9 @@ public class HtmlExporter implements Exporter {
             for (PageElement element : finalElements) {
                 switch (element.type) {
                     case TEXT_LINE -> renderTextLine((TextLine) element.element, sb);
+                    case HEADER -> renderHeader((Header) element.element, sb);
+                    case PARAGRAPH -> renderParagraph((Paragraph) element.element, sb);
+                    case OTHER_BLOCK -> renderOtherBlock((OtherBlock) element.element, sb);
                     case TABLE -> renderTable((Table) element.element, sb);
                     case IMAGE -> renderImage((PdfImage) element.element, sb);
                 }
@@ -113,10 +152,19 @@ public class HtmlExporter implements Exporter {
     private BoundingBox getBoundingBox(Object element) {
         return switch (element) {
             case TextLine tl -> tl.getBoundingBox();
+            case Header header -> header.getBoundingBox();
+            case Paragraph paragraph -> paragraph.getBoundingBox();
+            case OtherBlock otherBlock -> otherBlock.getBoundingBox();
             case Table table -> table.getBoundingBox();
             case PdfImage img -> img.getBoundingBox();
             default -> null;
         };
+    }
+
+    private boolean hasSemanticBlocks(PdfPage page) {
+        return (page.getHeaders() != null && !page.getHeaders().isEmpty())
+                || (page.getParagraphs() != null && !page.getParagraphs().isEmpty())
+                || (page.getOtherBlocks() != null && !page.getOtherBlocks().isEmpty());
     }
 
     private void renderTextLine(TextLine tl, StringBuilder sb) {
@@ -133,47 +181,133 @@ public class HtmlExporter implements Exporter {
                 .append("</div>\n");
     }
 
+    private void renderHeader(Header header, StringBuilder sb) {
+        sb.append("<div class=\"header-block\">")
+                .append(escapeHtml(header.getText()))
+                .append("</div>\n");
+    }
+
+    private void renderParagraph(Paragraph paragraph, StringBuilder sb) {
+        sb.append("<div class=\"paragraph-block\">")
+                .append(escapeHtml(paragraph.getText()))
+                .append("</div>\n");
+    }
+
+    private void renderOtherBlock(OtherBlock otherBlock, StringBuilder sb) {
+        sb.append("<div class=\"other-block\" data-label=\"")
+                .append(escapeHtml(otherBlock.getLabel()))
+                .append("\">")
+                .append(escapeHtml(otherBlock.getText()))
+                .append("</div>\n");
+    }
+
     private void renderTable(Table table, StringBuilder sb) {
+        List<List<TableCell>> compactRows = compactTableRows(table.getRows());
+        if (compactRows.isEmpty()) {
+            return;
+        }
+
         sb.append("<div class=\"table-wrapper\">");
         sb.append("<table style=\"border-collapse:collapse;\">");
 
-        if (table.getRows() != null) {
-            for (List<TableCell> row : table.getRows()) {
-                sb.append("<tr>");
-                if (row != null) {
-                    for (TableCell cell : row) {
-                        if (cell == null) continue;
+        for (List<TableCell> row : compactRows) {
+            sb.append("<tr>");
+            if (row != null) {
+                for (TableCell cell : row) {
+                    if (cell == null) continue;
+                    if (cell.getInvisible() == 1) continue;
 
-                        int colspan = Math.max(1, cell.getColSpan());
-                        int rowspan = Math.max(1, cell.getRowSpan());
-                        String cellStyle = "border:1px solid #ccc;padding:4px;vertical-align:top;";
-                        List<String> classes = new ArrayList<>();
+                    int colspan = Math.max(1, cell.getColSpan());
+                    int rowspan = Math.max(1, cell.getRowSpan());
+                    String cellStyle = "border:1px solid #ccc;padding:4px;vertical-align:top;";
+                    List<String> classes = new ArrayList<>();
 
-                        if (!cell.getContentBlocks().isEmpty()) {
-                            Object firstBlock = cell.getContentBlocks().getFirst();
-                            if (firstBlock instanceof Word wordInCell && wordInCell.getFont() != null) {
-                                if (wordInCell.getFont().isBold()) classes.add("bold");
-                                if (wordInCell.getFont().isItalic()) classes.add("italic");
-                            }
+                    if (cell.getContentBlocks() != null && !cell.getContentBlocks().isEmpty()) {
+                        Object firstBlock = cell.getContentBlocks().getFirst();
+                        if (firstBlock instanceof Word wordInCell && wordInCell.getFont() != null) {
+                            if (wordInCell.getFont().isBold()) classes.add("bold");
+                            if (wordInCell.getFont().isItalic()) classes.add("italic");
                         }
-
-                        String content = escapeHtml(cell.getContent());
-                        sb.append("<td");
-                        if (colspan > 1) sb.append(" colspan=\"").append(colspan).append("\"");
-                        if (rowspan > 1) sb.append(" rowspan=\"").append(rowspan).append("\"");
-                        sb.append(" style=\"").append(cellStyle).append("\"");
-                        if (!classes.isEmpty()) {
-                            sb.append(" class=\"").append(String.join(" ", classes)).append("\"");
-                        }
-                        sb.append(">").append(content).append("</td>");
                     }
+
+                    String content = escapeHtml(resolveCellContent(cell));
+                    sb.append("<td");
+                    if (colspan > 1) sb.append(" colspan=\"").append(colspan).append("\"");
+                    if (rowspan > 1) sb.append(" rowspan=\"").append(rowspan).append("\"");
+                    sb.append(" style=\"").append(cellStyle).append("\"");
+                    if (!classes.isEmpty()) {
+                        sb.append(" class=\"").append(String.join(" ", classes)).append("\"");
+                    }
+                    sb.append(">").append(content).append("</td>");
                 }
-                sb.append("</tr>");
             }
+            sb.append("</tr>");
         }
 
         sb.append("</table>");
         sb.append("</div>\n");
+    }
+
+    private List<List<TableCell>> compactTableRows(List<List<TableCell>> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+
+        List<List<TableCell>> nonEmptyRows = rows.stream()
+                .filter(row -> row != null && row.stream().anyMatch(this::hasCellContent))
+                .toList();
+        if (nonEmptyRows.isEmpty()) {
+            return List.of();
+        }
+
+        int maxCols = nonEmptyRows.stream().mapToInt(List::size).max().orElse(0);
+        boolean[] usedCols = new boolean[maxCols];
+        for (List<TableCell> row : nonEmptyRows) {
+            for (int i = 0; i < row.size(); i++) {
+                if (hasCellContent(row.get(i))) {
+                    usedCols[i] = true;
+                }
+            }
+        }
+
+        List<List<TableCell>> compact = new ArrayList<>();
+        for (List<TableCell> row : nonEmptyRows) {
+            List<TableCell> compactRow = new ArrayList<>();
+            for (int i = 0; i < row.size(); i++) {
+                if (i < usedCols.length && usedCols[i]) {
+                    compactRow.add(row.get(i));
+                }
+            }
+            if (compactRow.stream().anyMatch(this::hasCellContent)) {
+                compact.add(compactRow);
+            }
+        }
+        return compact;
+    }
+
+    private boolean hasCellContent(TableCell cell) {
+        if (cell == null) return false;
+        if (cell.getInvisible() == 1) return false;
+        String content = resolveCellContent(cell);
+        return content != null && !content.isBlank();
+    }
+
+    private String resolveCellContent(TableCell cell) {
+        if (cell == null) return "";
+        if (cell.getContentBlocks() == null || cell.getContentBlocks().isEmpty()) {
+            return cell.getContent() != null ? cell.getContent() : "";
+        }
+
+        List<TextEntity> blocks = new ArrayList<>(cell.getContentBlocks());
+        blocks.sort(Comparator
+                .comparingDouble((TextEntity b) -> -b.getBoundingBox().getCenterY())
+                .thenComparingDouble(b -> b.getBoundingBox().getX()));
+
+        return blocks.stream()
+                .map(TextEntity::getText)
+                .filter(t -> t != null && !t.isBlank())
+                .collect(Collectors.joining(" "))
+                .trim();
     }
 
     private void renderImage(PdfImage image, StringBuilder sb) {
@@ -182,9 +316,22 @@ public class HtmlExporter implements Exporter {
         String base64Data = Base64.getEncoder().encodeToString(image.getImageData());
         String mimeType = "image/" + (image.getImageFormat() != null ? image.getImageFormat().toLowerCase() : "png");
         var bbox = image.getBoundingBox();
+        double bboxWidth = bbox != null ? bbox.getWidth() : 0.0;
+        double bboxHeight = bbox != null ? bbox.getHeight() : 0.0;
 
-        double width = bbox.getWidth();
-        double height = bbox.getHeight();
+        // Filter PDF artifacts (stencil-like 1x1 pseudo-images) that render as black placeholders.
+        if (image.getWidth() <= 1 && image.getHeight() <= 1 && (bboxHeight <= 1 || bboxWidth > 100)) {
+            return;
+        }
+
+        double width = bboxWidth;
+        double height = bboxHeight;
+        if (width <= 1 || height <= 1) {
+            if (image.getWidth() > 0) width = image.getWidth();
+            if (image.getHeight() > 0) height = image.getHeight();
+        }
+        if (width <= 1) width = 320;
+        if (height <= 1) height = 180;
         double maxWidth = 800;
         double maxHeight = 600;
 
@@ -199,13 +346,16 @@ public class HtmlExporter implements Exporter {
                 .append("\" style=\"width:").append(width).append("px;height:auto;max-width:100%;border:1px solid #ddd;\"")
                 .append(" alt=\"PDF Image\">")
                 .append("<div style=\"font-size:10px;color:#666;text-align:center;\">")
-                .append("Image (").append(Math.round(bbox.getWidth())).append("x").append(Math.round(bbox.getHeight())).append(" pt)")
+                .append("Image (").append(Math.round(width)).append("x").append(Math.round(height)).append(")")
                 .append("</div>")
                 .append("</div>\n");
     }
 
     private enum PageElementType {
         TEXT_LINE,
+        HEADER,
+        PARAGRAPH,
+        OTHER_BLOCK,
         TABLE,
         IMAGE
     }

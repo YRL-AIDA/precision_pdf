@@ -665,6 +665,8 @@
                 <div class="viz-tab" data-viz-tab="areas">области таблиц</div>
                 <div class="viz-tab" data-viz-tab="tables">таблицы</div>
                 <div class="viz-tab" data-viz-tab="segments">сегменты</div>
+                <div class="viz-tab" data-viz-tab="rows_json">json rows</div>
+                <div class="viz-tab" data-viz-tab="table_debug">table debug</div>
             </div>
 
             <div class="pdf-container">
@@ -685,6 +687,8 @@
                 <iframe class="pdf-viewer" id="pdfViewerAreas" data-type="areas"></iframe>
                 <iframe class="pdf-viewer" id="pdfViewerTables" data-type="tables"></iframe>
                 <iframe class="pdf-viewer" id="pdfViewerSegments" data-type="segments"></iframe>
+                <iframe class="pdf-viewer" id="pdfViewerRowsJson" data-type="rows_json"></iframe>
+                <iframe class="pdf-viewer" id="pdfViewerTableDebug" data-type="table_debug"></iframe>
             </div>
 
             <div class="viz-controls">
@@ -800,7 +804,9 @@
         rulings: { loaded: false, url: null, element: null},
         areas: {loaded: false, url: null, element: null},
         tables: {loaded: false, url: null, element: null},
-        segments: {loaded: false, url: null, element: null}
+        segments: {loaded: false, url: null, element: null},
+        rows_json: {loaded: false, url: null, element: null},
+        table_debug: {loaded: false, url: null, element: null}
     };
 
     let currentVizType = 'words';
@@ -830,6 +836,8 @@
         visualizationCache.areas.element = document.getElementById('pdfViewerAreas');
         visualizationCache.tables.element = document.getElementById('pdfViewerTables');
         visualizationCache.segments.element = document.getElementById('pdfViewerSegments');
+        visualizationCache.rows_json.element = document.getElementById('pdfViewerRowsJson');
+        visualizationCache.table_debug.element = document.getElementById('pdfViewerTableDebug');
 
         // Элементы вкладок
         const tabs = document.querySelectorAll('.tab');
@@ -851,7 +859,7 @@
             noVizMessage.classList.remove('active');
 
 
-            const types = ['words', 'lines', 'chunks', 'rulings', 'areas', 'tables', 'segments'];
+            const types = ['words', 'lines', 'chunks', 'rulings', 'areas', 'tables', 'segments', 'rows_json', 'table_debug'];
             const loadPromises = [];
 
             for (const type of types) {

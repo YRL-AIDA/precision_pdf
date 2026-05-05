@@ -29,6 +29,9 @@ public class PdfPage implements PdfEntity {
     private List<Table> tables = new ArrayList<>();
     private List<PdfImage> images = new ArrayList<>();
     private List<TextEntity> blocks = new ArrayList<>();
+    private List<Header> headers = new ArrayList<>();
+    private List<Paragraph> paragraphs = new ArrayList<>();
+    private List<OtherBlock> otherBlocks = new ArrayList<>();
     @JsonIgnore
     private List<Ruling> joinedRulings = new ArrayList<>();
     @JsonIgnore
@@ -40,6 +43,7 @@ public class PdfPage implements PdfEntity {
     private List<BoundingBox> cells = new ArrayList<>();
     private List<BoundingBox> possibleTables = new ArrayList<>();
     private List<PdfSegment> segments = new ArrayList<>();
+    private List<BoundingBox> jsonRows = new ArrayList<>();
 
     @JsonIgnore
     private List<Ruling> visibleRulings = new ArrayList<>();
@@ -73,6 +77,11 @@ public class PdfPage implements PdfEntity {
 
     public void removeBlock(TextEntity block){
         blocks.remove(block);
+    }
+    public void addBlock(TextEntity block) {
+        if (block != null) {
+            blocks.add(block);
+        }
     }
     public void addVisibleRuling(Ruling r){
         this.visibleRulings.add(r);
