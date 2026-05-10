@@ -476,6 +476,7 @@
             display: block;
         }
 
+
         @media (max-width: 768px) {
             .header-content {
                 flex-direction: column;
@@ -604,6 +605,7 @@
             <select id="parserType">
                 <option value="precision-pdf">Precision</option>
                 <option value="gnn-segments">GNN Segments</option>
+                <option value="odl-parser">ODL Parser</option>
             </select>
         </div>
 
@@ -1063,6 +1065,13 @@
                     extractionResults = apiResponse.data;
                     displayResults(extractionResults, apiResponse.message, apiResponse.processingTimeMs);
                     showSuccess(`PDF успешно обработан за ${apiResponse.processingTimeMs} мс`);
+
+                    if (parserType === 'odl-parser') {
+                        currentVizType = 'segments';
+                        vizTabs.forEach(tab => {
+                            tab.classList.toggle('active', tab.getAttribute('data-viz-tab') === 'segments');
+                        });
+                    }
 
                     await preloadAllVisualizations();
                 } else {

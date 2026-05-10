@@ -22,11 +22,12 @@ public class PdfParseFactory {
     }
 
     public PdfParser createParser(String parserType, ParserConfig config) {
-        String normalized = parserType == null ? "" : parserType.trim().toLowerCase();
-        if ("gnn-segments".equals(normalized) || "gnn".equals(normalized) || "segments".equals(normalized)) {
-            return new GnnSegmentsParser();
-        }
-        return createPdfBoxParser(config);
+        ParserType type = ParserType.fromString(parserType);
+        return switch (type) {
+            case GNN_SEGMENTS -> new GnnSegmentsParser();
+            case ODL_PARSER -> new OdlParser();
+            case PRECISION, DEFAULT -> createPdfBoxParser(config);
+        };
     }
 
     private PdfParser createPdfBoxParser(ParserConfig config) {

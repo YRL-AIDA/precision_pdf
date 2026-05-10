@@ -3,6 +3,7 @@ package ru.sunveil.precision_pdf.pdfparser.parser;
 public enum ParserType {
     PRECISION("precision-pdf"),
     GNN_SEGMENTS("gnn-segments"),
+    ODL_PARSER("odl-parser"),
     DEFAULT("default");
 
     private final String value;
@@ -26,6 +27,9 @@ public enum ParserType {
         }
         if ("gnn".equals(normalized) || "segments".equals(normalized)) {
             return GNN_SEGMENTS;
+        }
+        if ("odl".equals(normalized) || "dataloaderpdf".equals(normalized) || "opendataloader".equals(normalized)) {
+            return ODL_PARSER;
         }
 
         for (ParserType type : ParserType.values()) {
