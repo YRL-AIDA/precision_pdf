@@ -23,6 +23,12 @@ public class Table implements PdfEntity {
     private ArrayList<Range> vertical = new ArrayList<>();
     private ArrayList<Range> horizontal = new ArrayList<>();
 
+    /**
+     * When {@code true}, {@link ru.sunveil.precision_pdf.pdfparser.export.HtmlExporter} renders {@link #rows} without
+     * {@code compactTableRows} (preserves empty cells and row order), e.g. for ODL JSON row-order tables.
+     */
+    private boolean skipHtmlCompaction;
+
     @Override
     public String getType() {
         return "TABLE";

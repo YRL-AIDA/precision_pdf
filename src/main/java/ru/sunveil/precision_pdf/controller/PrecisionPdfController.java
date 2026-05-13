@@ -33,9 +33,12 @@ import java.util.stream.Collectors;
 public class PrecisionPdfController {
 
     private final PrecisionPdfExtractionService pdfExtractionService;
+    private final ExtractionConfig extractionConfig;
 
-    public PrecisionPdfController(PrecisionPdfExtractionService pdfExtractionService) {
+    public PrecisionPdfController(PrecisionPdfExtractionService pdfExtractionService,
+                                  ExtractionConfig extractionConfig) {
         this.pdfExtractionService = pdfExtractionService;
+        this.extractionConfig = extractionConfig;
     }
 
     @GetMapping("/")
@@ -172,6 +175,7 @@ public class PrecisionPdfController {
             config.setParser(parser);
         }
         config.setPreserveLayout(true);
+        config.setOdlHeuristicTableModel(extractionConfig.isOdlHeuristicTableModel());
         return config;
     }
 }

@@ -202,15 +202,17 @@ public class HtmlExporter implements Exporter {
     }
 
     private void renderTable(Table table, StringBuilder sb) {
-        List<List<TableCell>> compactRows = compactTableRows(table.getRows());
-        if (compactRows.isEmpty()) {
+        List<List<TableCell>> rowsToRender = table.isSkipHtmlCompaction()
+                ? (table.getRows() != null ? table.getRows() : List.of())
+                : compactTableRows(table.getRows());
+        if (rowsToRender.isEmpty()) {
             return;
         }
 
         sb.append("<div class=\"table-wrapper\">");
         sb.append("<table style=\"border-collapse:collapse;\">");
 
-        for (List<TableCell> row : compactRows) {
+        for (List<TableCell> row : rowsToRender) {
             sb.append("<tr>");
             if (row != null) {
                 for (TableCell cell : row) {

@@ -18,4 +18,11 @@ public class ExtractionConfig {
     private boolean includeBoundingBoxes = true;
     private boolean includeFontInfo = true;
     private boolean includeConfidenceScores = false;
+
+    /**
+     * ODL only: when {@code true}, tables are built with placeholder inflation + occupancy grid.
+     * When {@code false} (default), each JSON {@code rows[]} element becomes one HTML {@code tr} with cells in JSON order
+     * and spans taken from ODL as-is.
+     */
+    private boolean odlHeuristicTableModel = false;
 }

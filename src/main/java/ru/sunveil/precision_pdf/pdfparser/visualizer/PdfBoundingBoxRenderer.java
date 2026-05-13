@@ -156,6 +156,7 @@ public class PdfBoundingBoxRenderer {
                     if (boxType == BoxType.SEGMENTS) {
                         contentStream.setStrokingColor(Color.MAGENTA);
                         contentStream.setLineWidth(0.6f);
+                        final float segmentLabelOffsetLeft = 8f;
                         for (PdfSegment segment : pdfPage.getSegments()) {
                             if (segment == null || segment.getBoundingBox() == null || !segment.getBoundingBox().isValid()) {
                                 continue;
@@ -163,7 +164,11 @@ public class PdfBoundingBoxRenderer {
                             BoundingBox bb = segment.getBoundingBox();
                             contentStream.addRect(bb.getX(), bb.getY(), bb.getWidth(), bb.getHeight());
                             contentStream.stroke();
-                            drawOrderText(contentStream, segment.getLabel(), bb.getX(), bb.getY() + bb.getHeight() + 2);
+                            drawOrderText(
+                                    contentStream,
+                                    segment.getLabel(),
+                                    bb.getX() - segmentLabelOffsetLeft,
+                                    bb.getY() + bb.getHeight() + 2);
                         }
                     }
 
