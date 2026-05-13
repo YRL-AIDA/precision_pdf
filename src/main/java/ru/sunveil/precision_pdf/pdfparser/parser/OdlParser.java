@@ -130,8 +130,22 @@ public class OdlParser extends AbstractPdfBoxParser {
     private Path runOdlPythonAndGetJson(File pdfFile) throws IOException, InterruptedException {
         Path outputDir = Files.createTempDirectory("odl_parser_output_");
         Path scriptPath = Path.of("odl_parser", "main.py").toAbsolutePath();
-        Path preferredPython = Path.of("odl_parser", "venv", "Scripts", "python.exe").toAbsolutePath();
-        String pythonExecutable = Files.exists(preferredPython) ? preferredPython.toString() : "python";
+        Path dotVenvUnixPython = Path.of("odl_parser", ".venv", "bin", "python").toAbsolutePath();
+        Path dotVenvWindowsPython = Path.of("odl_parser", ".venv", "Scripts", "python.exe").toAbsolutePath();
+        Path venvUnixPython = Path.of("odl_parser", "venv", "bin", "python").toAbsolutePath();
+        Path venvWindowsPython = Path.of("odl_parser", "venv", "Scripts", "python.exe").toAbsolutePath();
+        String pythonExecutable;
+        if (Files.exists(dotVenvUnixPython)) {
+            pythonExecutable = dotVenvUnixPython.toString();
+        } else if (Files.exists(dotVenvWindowsPython)) {
+            pythonExecutable = dotVenvWindowsPython.toString();
+        } else if (Files.exists(venvUnixPython)) {
+            pythonExecutable = venvUnixPython.toString();
+        } else if (Files.exists(venvWindowsPython)) {
+            pythonExecutable = venvWindowsPython.toString();
+        } else {
+            pythonExecutable = "python";
+        }
 
         ProcessBuilder processBuilder = new ProcessBuilder(
                 pythonExecutable,

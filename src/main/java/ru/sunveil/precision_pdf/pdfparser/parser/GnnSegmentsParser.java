@@ -115,8 +115,9 @@ public class GnnSegmentsParser extends AbstractPdfBoxParser {
             throw new IOException("Path is not a directory: " + outputsDir);
         }
 
+        String curlExecutable = resolveCurlExecutable();
         ProcessBuilder processBuilder = new ProcessBuilder(
-                "curl.exe",
+                curlExecutable,
                 "--silent",
                 "--show-error",
                 "-X", "POST",
@@ -136,7 +137,7 @@ public class GnnSegmentsParser extends AbstractPdfBoxParser {
 
         int exitCode = process.waitFor();
         if (exitCode != 0 || responseBody.isBlank()) {
-            throw new IOException("curl.exe failed for GNN segmentation. Exit code: " + exitCode +
+            throw new IOException(curlExecutable + " failed for GNN segmentation. Exit code: " + exitCode +
                     (errorBody.isBlank() ? "" : ", stderr: " + errorBody));
         }
 
@@ -150,6 +151,11 @@ public class GnnSegmentsParser extends AbstractPdfBoxParser {
         Path responsePath = outputsDir.resolve("response_" + System.currentTimeMillis() + ".json");
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(responsePath.toFile(), jsonNode);
         return responsePath;
+    }
+
+    private String resolveCurlExecutable() {
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        return osName.contains("win") ? "curl.exe" : "curl";
     }
 
     private List<PdfPage> extractPages(PDDocument document, Path pagerOutputPath, ExtractionConfig config) throws IOException {
@@ -1224,15 +1230,27 @@ public class GnnSegmentsParser extends AbstractPdfBoxParser {
 
         float xTopLeft = (float) segmentNode.path("x_top_left").asDouble(Float.NaN);
         float yTopLeft = (float) segmentNode.path("y_top_left").asDouble(Float.NaN);
-        float xBottomRight = (float) segmentNode.path("x_bottom_right").asDouble(Float.NaN);
-        float yBottomRight = (float) segmentNode.path("y_bottom_right").asDouble(Float.NaN);
-
-        if (Float.isNaN(xTopLeft) || Float.isNaN(yTopLeft) || Float.isNaN(xBottomRight) || Float.isNaN(yBottomRight)) {
+        if (Float.isNaN(xTopLeft) || Float.isNaN(yTopLeft)) {
             return null;
         }
 
-        float width = xBottomRight - xTopLeft;
-        float height = yBottomRight - yTopLeft;
+        float xBottomRight = (float) segmentNode.path("x_bottom_right").asDouble(Float.NaN);
+        float yBottomRight = (float) segmentNode.path("y_bottom_right").asDouble(Float.NaN);
+
+        float width;
+        float height;
+        if (!Float.isNaN(xBottomRight) && !Float.isNaN(yBottomRight)) {
+            width = xBottomRight - xTopLeft;
+            height = yBottomRight - yTopLeft;
+        } else {
+            width = (float) segmentNode.path("width").asDouble(Float.NaN);
+            height = (float) segmentNode.path("height").asDouble(Float.NaN);
+            if (Float.isNaN(width) || Float.isNaN(height)) {
+                return null;
+            }
+            yBottomRight = yTopLeft + height;
+        }
+
         if (width <= 0 || height <= 0) {
             return null;
         }
