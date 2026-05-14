@@ -609,6 +609,15 @@
             </select>
         </div>
 
+        <div class="option-item" id="odlModeRow" style="display: none; margin-top: 0.5rem;">
+            <label for="odlConversionMode">Режим ODL (OpenDataloader):</label>
+            <select id="odlConversionMode">
+                <option value="heuristic">Эвристика (без Docling)</option>
+                <option value="docling-fast">Docling fast (hybrid)</option>
+                <option value="merge-tables">Два прогона: эвристика + Docling для «слабых» таблиц</option>
+            </select>
+        </div>
+
         <div style="margin-top: 1.5rem; text-align: center;">
             <button class="btn btn-success" id="processBtn" disabled>Обработать PDF</button>
             <button class="btn btn-secondary" id="metadataOnlyBtn" disabled>Только метаданные</button>
@@ -855,6 +864,19 @@
         initializeEventListeners();
         loadSupportedFormats();
 
+        fetch(`${API_BASE_URL}/config`)
+            .then(r => {
+                if (!r.ok) throw new Error('config');
+                return r.json();
+            })
+            .then(cfg => {
+                const sel = document.getElementById('odlConversionMode');
+                if (sel && cfg.odlConversionMode) {
+                    sel.value = cfg.odlConversionMode;
+                }
+            })
+            .catch(() => {});
+
         async function preloadAllVisualizations() {
             if (!currentFile) return;
 
@@ -903,6 +925,18 @@
             // Обработчики для кнопок обработки
             processBtn.addEventListener('click', processPdf);
             metadataOnlyBtn.addEventListener('click', extractMetadataOnly);
+
+            const parserTypeSelect = document.getElementById('parserType');
+            const odlModeRow = document.getElementById('odlModeRow');
+            function syncOdlModeVisibility() {
+                if (odlModeRow && parserTypeSelect) {
+                    odlModeRow.style.display = parserTypeSelect.value === 'odl-parser' ? 'block' : 'none';
+                }
+            }
+            if (parserTypeSelect) {
+                parserTypeSelect.addEventListener('change', syncOdlModeVisibility);
+                syncOdlModeVisibility();
+            }
 
             // Обработчики для вкладок
             tabs.forEach(tab => {
@@ -1049,6 +1083,9 @@
                 formData.append('extractMetadata', extractMetadata);
                 formData.append('parser', parserType);
                 formData.append('outputFormat', outputFormat);
+                if (parserType === 'odl-parser') {
+                    formData.append('odlConversionMode', document.getElementById('odlConversionMode').value);
+                }
 
                 // Отправить запрос к API
                 const response = await fetch(`${API_BASE_URL}/extract/text`, {

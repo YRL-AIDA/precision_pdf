@@ -49,7 +49,7 @@ public class OdlParser extends AbstractPdfBoxParser {
             }
 
             List<PdfPage> pages = createBasePages(document);
-            Path odlJsonPath = runOdlPythonAndGetJson(pdfFile);
+            Path odlJsonPath = runOdlPythonAndGetJson(pdfFile, config);
             JsonNode root = OBJECT_MAPPER.readTree(odlJsonPath.toFile());
             JsonNode kids = root.path("kids");
 
@@ -138,7 +138,7 @@ public class OdlParser extends AbstractPdfBoxParser {
         return pages;
     }
 
-    private Path runOdlPythonAndGetJson(File pdfFile) throws IOException, InterruptedException {
+    private Path runOdlPythonAndGetJson(File pdfFile, ExtractionConfig config) throws IOException, InterruptedException {
         Path outputDir = Files.createTempDirectory("odl_parser_output_");
         Path scriptPath = Path.of("odl_parser", "main.py").toAbsolutePath();
         Path dotVenvUnixPython = Path.of("odl_parser", ".venv", "bin", "python").toAbsolutePath();
@@ -158,13 +158,17 @@ public class OdlParser extends AbstractPdfBoxParser {
             pythonExecutable = "python";
         }
 
+        String odlMode = normalizeOdlConversionMode(config);
+
         ProcessBuilder processBuilder = new ProcessBuilder(
                 pythonExecutable,
                 scriptPath.toString(),
                 "--pdf",
                 pdfFile.getAbsolutePath(),
                 "--output-dir",
-                outputDir.toAbsolutePath().toString()
+                outputDir.toAbsolutePath().toString(),
+                "--odl-mode",
+                odlMode
         );
         processBuilder.redirectErrorStream(true);
         Process process = processBuilder.start();
@@ -182,6 +186,23 @@ public class OdlParser extends AbstractPdfBoxParser {
             throw new IOException("ODL JSON output not found: " + jsonPath + ". Parser output: " + outputText);
         }
         return jsonPath;
+    }
+
+    /**
+     * Maps {@link ExtractionConfig#getOdlConversionMode()} to CLI values for {@code odl_parser/main.py}.
+     */
+    private static String normalizeOdlConversionMode(ExtractionConfig config) {
+        if (config == null || config.getOdlConversionMode() == null || config.getOdlConversionMode().isBlank()) {
+            return "heuristic";
+        }
+        String m = config.getOdlConversionMode().trim().toLowerCase(Locale.ROOT).replace('_', '-');
+        if ("merge".equals(m) || "both".equals(m) || "merge-tables".equals(m) || "mergetables".equals(m)) {
+            return "merge-tables";
+        }
+        if ("docling".equals(m) || "docling-fast".equals(m) || "hybrid".equals(m)) {
+            return "docling-fast";
+        }
+        return "heuristic";
     }
 
     private void collectSegments(JsonNode node, List<PdfPage> pages) {

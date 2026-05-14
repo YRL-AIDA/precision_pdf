@@ -48,7 +48,7 @@ public class PrecisionPdfController {
 
     @GetMapping("/config")
     public ExtractionConfig getConfig() {
-        return pdfExtractionService.getDefaultConfig();
+        return extractionConfig;
     }
 
     @PostMapping("/extract/text")
@@ -59,12 +59,14 @@ public class PrecisionPdfController {
             @RequestParam(value = "extractTables", required = false) Boolean extractTables,
             @RequestParam(value = "extractMetadata", required = false) Boolean extractMetadata,
             @RequestParam(value = "parser", required = false) String parser,
+            @RequestParam(value = "odlConversionMode", required = false) String odlConversionMode,
             @RequestParam(value = "outputFormat", defaultValue = "JSON") String outputFormat) {
 
         long startTime = System.currentTimeMillis();
 
         try {
-            ExtractionConfig config = createCustomConfig(extractText, extractImages, extractTables, extractMetadata, parser);
+            ExtractionConfig config = createCustomConfig(
+                    extractText, extractImages, extractTables, extractMetadata, parser, odlConversionMode);
 
             config.setOutputFormat(outputFormat);
 
@@ -165,7 +167,7 @@ public class PrecisionPdfController {
 
     private ExtractionConfig createCustomConfig(Boolean extractText, Boolean extractImages,
                                                 Boolean extractTables, Boolean extractMetadata,
-                                                String parser) {
+                                                String parser, String odlConversionMode) {
         ExtractionConfig config = new ExtractionConfig();
         config.setExtractText(extractText != null ? extractText : true);
         config.setExtractImages(extractImages != null ? extractImages : false);
@@ -176,6 +178,11 @@ public class PrecisionPdfController {
         }
         config.setPreserveLayout(true);
         config.setOdlHeuristicTableModel(extractionConfig.isOdlHeuristicTableModel());
+        if (odlConversionMode != null && !odlConversionMode.isBlank()) {
+            config.setOdlConversionMode(odlConversionMode.trim());
+        } else {
+            config.setOdlConversionMode(extractionConfig.getOdlConversionMode());
+        }
         return config;
     }
 }

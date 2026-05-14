@@ -25,4 +25,16 @@ public class ExtractionConfig {
      * and spans taken from ODL as-is.
      */
     private boolean odlHeuristicTableModel = false;
+
+    /**
+     * ODL / OpenDataloader only: how {@code opendataloader_pdf.convert} is run for tables (and whole JSON).
+     * <ul>
+     *   <li>{@code heuristic} — без {@code hybrid} (нативный/геометрический путь, быстрее).</li>
+     *   <li>{@code docling-fast} — с {@code hybrid="docling-fast"} (Docling, лучше на сложных/безлинейных таблицах).</li>
+     *   <li>{@code merge-tables} — два прогона: JSON строится от эвристики; узлы {@code table} заменяются на вариант из Docling,
+     *       если нативная таблица «слабая» или документ похож на скан с малым текстом.</li>
+     * </ul>
+     * Алиасы: {@code merge}, {@code both} → merge-tables; {@code docling}, {@code hybrid} → docling-fast.
+     */
+    private String odlConversionMode = "heuristic";
 }
