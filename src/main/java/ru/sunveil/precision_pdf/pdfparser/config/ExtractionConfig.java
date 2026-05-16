@@ -37,4 +37,9 @@ public class ExtractionConfig {
      * Алиасы: {@code merge}, {@code both} → merge-tables; {@code docling}, {@code hybrid} → docling-fast.
      */
     private String odlConversionMode = "heuristic";
+
+    private String deepseekOcrMode = "auto";
+
+    /** Render DPI for page images passed to DeepSeek-OCR. */
+    private int deepseekOcrRenderDpi = 144;
 }

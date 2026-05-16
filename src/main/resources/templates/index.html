@@ -606,6 +606,16 @@
                 <option value="precision-pdf">Precision</option>
                 <option value="gnn-segments">GNN Segments</option>
                 <option value="odl-parser">ODL Parser</option>
+                <option value="deepseek-ocr">DeepSeek OCR</option>
+            </select>
+        </div>
+
+        <div class="option-item" id="deepseekModeRow" style="display: none; margin-top: 0.5rem;">
+            <label for="deepseekOcrMode">Режим DeepSeek OCR:</label>
+            <select id="deepseekOcrMode">
+                <option value="auto">Авто (HuggingFace при наличии torch, иначе PyMuPDF)</option>
+                <option value="stub">Только PyMuPDF (без весов)</option>
+                <option value="transformers">HuggingFace / DeepSeek-OCR</option>
             </select>
         </div>
 
@@ -874,6 +884,10 @@
                 if (sel && cfg.odlConversionMode) {
                     sel.value = cfg.odlConversionMode;
                 }
+                const dsel = document.getElementById('deepseekOcrMode');
+                if (dsel && cfg.deepseekOcrMode) {
+                    dsel.value = cfg.deepseekOcrMode;
+                }
             })
             .catch(() => {});
 
@@ -928,9 +942,13 @@
 
             const parserTypeSelect = document.getElementById('parserType');
             const odlModeRow = document.getElementById('odlModeRow');
+            const deepseekModeRow = document.getElementById('deepseekModeRow');
             function syncOdlModeVisibility() {
                 if (odlModeRow && parserTypeSelect) {
                     odlModeRow.style.display = parserTypeSelect.value === 'odl-parser' ? 'block' : 'none';
+                }
+                if (deepseekModeRow && parserTypeSelect) {
+                    deepseekModeRow.style.display = parserTypeSelect.value === 'deepseek-ocr' ? 'block' : 'none';
                 }
             }
             if (parserTypeSelect) {
@@ -1086,6 +1104,9 @@
                 if (parserType === 'odl-parser') {
                     formData.append('odlConversionMode', document.getElementById('odlConversionMode').value);
                 }
+                if (parserType === 'deepseek-ocr') {
+                    formData.append('deepseekOcrMode', document.getElementById('deepseekOcrMode').value);
+                }
 
                 // Отправить запрос к API
                 const response = await fetch(`${API_BASE_URL}/extract/text`, {
@@ -1103,7 +1124,7 @@
                     displayResults(extractionResults, apiResponse.message, apiResponse.processingTimeMs);
                     showSuccess(`PDF успешно обработан за ${apiResponse.processingTimeMs} мс`);
 
-                    if (parserType === 'odl-parser') {
+                    if (parserType === 'odl-parser' || parserType === 'deepseek-ocr') {
                         currentVizType = 'segments';
                         vizTabs.forEach(tab => {
                             tab.classList.toggle('active', tab.getAttribute('data-viz-tab') === 'segments');

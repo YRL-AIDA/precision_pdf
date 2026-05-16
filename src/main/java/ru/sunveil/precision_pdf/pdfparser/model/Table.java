@@ -29,6 +29,9 @@ public class Table implements PdfEntity {
      */
     private boolean skipHtmlCompaction;
 
+    /** DeepSeek OCR may return a full table; render as-is in HTML export. */
+    private String embeddedHtml;
+
     @Override
     public String getType() {
         return "TABLE";

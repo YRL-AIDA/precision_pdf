@@ -18,11 +18,17 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Component
 public class HtmlExporter implements Exporter {
+
+    private static final Pattern EMBEDDED_HTML_TABLE = Pattern.compile(
+            "(?is)<table\\b[\\s\\S]*?</table>");
 
     @Override
     public String export(PdfDocument document, ExportFormat format) {
@@ -202,6 +208,17 @@ public class HtmlExporter implements Exporter {
     }
 
     private void renderTable(Table table, StringBuilder sb) {
+        String embeddedHtml = table.getEmbeddedHtml();
+        if (embeddedHtml == null || embeddedHtml.isBlank()) {
+            embeddedHtml = findEmbeddedHtmlTable(table);
+        }
+        if (embeddedHtml != null && !embeddedHtml.isBlank()) {
+            sb.append("<div class=\"table-wrapper\">");
+            sb.append(styleEmbeddedHtmlTable(embeddedHtml));
+            sb.append("</div>\n");
+            return;
+        }
+
         List<List<TableCell>> rowsToRender = table.isSkipHtmlCompaction()
                 ? (table.getRows() != null ? table.getRows() : List.of())
                 : compactTableRows(table.getRows());
@@ -377,6 +394,44 @@ public class HtmlExporter implements Exporter {
     @Override
     public boolean supportsFormat(ExportFormat format) {
         return format == ExportFormat.HTML;
+    }
+
+    private String findEmbeddedHtmlTable(Table table) {
+        if (table == null || table.getRows() == null) {
+            return null;
+        }
+        for (List<TableCell> row : table.getRows()) {
+            if (row == null) {
+                continue;
+            }
+            for (TableCell cell : row) {
+                String text = resolveCellContent(cell);
+                if (text == null || text.isBlank()) {
+                    continue;
+                }
+                Matcher matcher = EMBEDDED_HTML_TABLE.matcher(text.trim());
+                if (matcher.find()) {
+                    return matcher.group();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String styleEmbeddedHtmlTable(String html) {
+        String trimmed = html.trim();
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("<table") && !lower.contains("border-collapse")) {
+            trimmed = trimmed.replaceFirst(
+                    "(?i)<table\\b",
+                    "<table style=\"border-collapse:collapse;width:100%;\"");
+        }
+        return trimmed
+                .replaceAll("(?i)<td\\b", "<td style=\"border:1px solid #ccc;padding:4px;vertical-align:top;\"")
+                .replaceAll("(?i)<th\\b", "<th style=\"border:1px solid #ccc;padding:4px;vertical-align:top;\"");
     }
 
     private String escapeHtml(String str) {

@@ -60,13 +60,15 @@ public class PrecisionPdfController {
             @RequestParam(value = "extractMetadata", required = false) Boolean extractMetadata,
             @RequestParam(value = "parser", required = false) String parser,
             @RequestParam(value = "odlConversionMode", required = false) String odlConversionMode,
+            @RequestParam(value = "deepseekOcrMode", required = false) String deepseekOcrMode,
             @RequestParam(value = "outputFormat", defaultValue = "JSON") String outputFormat) {
 
         long startTime = System.currentTimeMillis();
 
         try {
             ExtractionConfig config = createCustomConfig(
-                    extractText, extractImages, extractTables, extractMetadata, parser, odlConversionMode);
+                    extractText, extractImages, extractTables, extractMetadata, parser, odlConversionMode,
+                    deepseekOcrMode);
 
             config.setOutputFormat(outputFormat);
 
@@ -167,7 +169,8 @@ public class PrecisionPdfController {
 
     private ExtractionConfig createCustomConfig(Boolean extractText, Boolean extractImages,
                                                 Boolean extractTables, Boolean extractMetadata,
-                                                String parser, String odlConversionMode) {
+                                                String parser, String odlConversionMode,
+                                                String deepseekOcrMode) {
         ExtractionConfig config = new ExtractionConfig();
         config.setExtractText(extractText != null ? extractText : true);
         config.setExtractImages(extractImages != null ? extractImages : false);
@@ -182,6 +185,12 @@ public class PrecisionPdfController {
             config.setOdlConversionMode(odlConversionMode.trim());
         } else {
             config.setOdlConversionMode(extractionConfig.getOdlConversionMode());
+        }
+        config.setDeepseekOcrRenderDpi(extractionConfig.getDeepseekOcrRenderDpi());
+        if (deepseekOcrMode != null && !deepseekOcrMode.isBlank()) {
+            config.setDeepseekOcrMode(deepseekOcrMode.trim());
+        } else {
+            config.setDeepseekOcrMode(extractionConfig.getDeepseekOcrMode());
         }
         return config;
     }

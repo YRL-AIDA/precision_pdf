@@ -1,0 +1,14 @@
+# Minimal (stub / auto fallback without GPU weights)
+pymupdf>=1.24.0
+
+# Optional: DeepSeek-OCR via HuggingFace only (no vLLM in main.py; CUDA or ROCm torch recommended)
+torch==2.6.0
+transformers>=4.51.1
+tokenizers==0.20.3
+#Pillow
+addict
+#matplotlib
+#requests
+#torchvision
+einops
+easydict

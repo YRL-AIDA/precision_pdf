@@ -26,6 +26,7 @@ public class PdfParseFactory {
         return switch (type) {
             case GNN_SEGMENTS -> new GnnSegmentsParser();
             case ODL_PARSER -> new OdlParser();
+            case DEEPSEEK_OCR -> new DeepSeekOcrParser();
             case PRECISION, DEFAULT -> createPdfBoxParser(config);
         };
     }
