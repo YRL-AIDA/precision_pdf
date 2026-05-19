@@ -464,11 +464,6 @@ public abstract class AbstractRegionsJsonSegmentsParser extends AbstractPdfBoxPa
         table.setOrder(regionLines.get(0).getOrder());
         return table;
     }
-
-    /**
-     * DeepSeek-OCR (and similar) may supply a full {@code <table>} in {@code html_table};
-     * skip grid clustering/MIPS when that HTML is present.
-     */
     private Table buildTableFromEmbeddedHtml(
             PdfPage page, BoundingBox tableBBox, List<TextLine> regionLines, String htmlTable) {
         Table table = new Table(
