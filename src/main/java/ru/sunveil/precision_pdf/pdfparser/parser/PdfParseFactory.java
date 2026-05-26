@@ -24,7 +24,7 @@ public class PdfParseFactory {
     public PdfParser createParser(String parserType, ParserConfig config) {
         ParserType type = ParserType.fromString(parserType);
         return switch (type) {
-            case GNN_SEGMENTS -> new GnnSegmentsParser();
+            case PAGE_R_PARSER -> new PageRParser();
             case ODL_PARSER -> new OdlParser();
             case DEEPSEEK_OCR -> new DeepSeekOcrParser();
             case PRECISION, DEFAULT -> createPdfBoxParser(config);

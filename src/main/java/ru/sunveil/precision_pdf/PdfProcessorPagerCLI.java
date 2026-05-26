@@ -111,7 +111,7 @@ public class PdfProcessorPagerCLI {
 
     private ParserConfig createParserConfig() {
         ParserConfig config = new ParserConfig();
-        config.setParserType("pdfbox");
+        config.setParserType("precision-pdf");
         config.setEnableMemoryMapping(false);
         config.setMaxMemoryUsageMb(256);
         config.setIgnoreCorrupted(false);

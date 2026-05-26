@@ -14,6 +14,7 @@ import ru.sunveil.precision_pdf.pdfparser.model.core.TextEntity;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.ImageExtractionEngine;
 import ru.sunveil.precision_pdf.pdfparser.table.TableType;
+import ru.sunveil.precision_pdf.pdfparser.util.BlockTextLayoutBuilder;
 
 import java.awt.Color;
 import java.io.File;
@@ -204,7 +205,7 @@ public abstract class AbstractRegionsJsonSegmentsParser extends AbstractPdfBoxPa
         List<TextLine> textLines = new ArrayList<>();
         JsonNode rowsNode = regionNode.path("rows");
         if (!rowsNode.isArray()) {
-            return textLines;
+            return buildTextLinesFromRegionFallback(regionNode, page, baseOrder, wordOrderRef);
         }
 
         int lineIndex = 0;
@@ -238,20 +239,27 @@ public abstract class AbstractRegionsJsonSegmentsParser extends AbstractPdfBoxPa
         }
 
         if (!textLines.isEmpty()) {
-            BoundingBox chunkBBox = textLines.get(0).getBoundingBox().copy();
-            StringBuilder chunkText = new StringBuilder();
-            for (TextLine line : textLines) {
-                chunkBBox = chunkBBox.union(line.getBoundingBox());
-                if (!chunkText.isEmpty()) {
-                    chunkText.append("\n");
-                }
-                chunkText.append(line.getText());
-            }
-            PdfTextChunk chunk = new PdfTextChunk(page.getPageNumber(), chunkBBox, chunkText.toString(), textLines, null);
-            chunk.setOrder(baseOrder);
-            page.getPdfTextChunks().add(chunk);
+            BlockTextLayoutBuilder.appendTextChunk(page, baseOrder, textLines);
         }
 
+        return textLines;
+    }
+
+    private List<TextLine> buildTextLinesFromRegionFallback(
+            JsonNode regionNode, PdfPage page, int baseOrder, int[] wordOrderRef) {
+        BoundingBox regionBBox = toBoundingBox(regionNode.path("segment"), page.getHeight());
+        String regionText = regionNode.path("text").asText("").trim();
+        if (regionBBox == null || !regionBBox.isValid() || regionText.isBlank()) {
+            return List.of();
+        }
+
+        List<Word> regionWords = new ArrayList<>();
+        List<TextLine> textLines = BlockTextLayoutBuilder.buildTextLines(
+                page.getPageNumber(), regionBBox, regionText, baseOrder, wordOrderRef, regionWords);
+        page.getWords().addAll(regionWords);
+        if (!textLines.isEmpty()) {
+            BlockTextLayoutBuilder.appendTextChunk(page, baseOrder, textLines);
+        }
         return textLines;
     }
 

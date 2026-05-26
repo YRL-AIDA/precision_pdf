@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 @ConfigurationProperties(prefix = "pdf.extraction")
 public class ExtractionConfig {
-    private String parser = "simple";
+    private String parser = "precision-pdf";
     private boolean extractText = true;
     private boolean extractImages = true;
     private boolean extractTables = true;

@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class GnnSegmentsParser extends AbstractRegionsJsonSegmentsParser {
+public class PageRParser extends AbstractRegionsJsonSegmentsParser {
 
     private static final String PAGER_OUTPUTS_DIR = "pageroutputs";
     private final ObjectMapper curlMapper = new ObjectMapper();
@@ -18,15 +18,15 @@ public class GnnSegmentsParser extends AbstractRegionsJsonSegmentsParser {
     @Override
     protected Path produceSegmentationJson(File pdfFile, ExtractionConfig config)
             throws IOException, InterruptedException {
-        return executeGnnCurlAndSaveJson(pdfFile);
+        return executePageRCurlAndSaveJson(pdfFile);
     }
 
     @Override
     protected String parseFailureMessage() {
-        return "Failed to parse PDF with GNN segment JSON";
+        return "Failed to parse PDF with PageR segment JSON";
     }
 
-    private Path executeGnnCurlAndSaveJson(File pdfFile) throws IOException, InterruptedException {
+    private Path executePageRCurlAndSaveJson(File pdfFile) throws IOException, InterruptedException {
         Path outputsDir = Path.of(PAGER_OUTPUTS_DIR).toAbsolutePath();
         if (!Files.exists(outputsDir)) {
             Files.createDirectories(outputsDir);
@@ -57,7 +57,7 @@ public class GnnSegmentsParser extends AbstractRegionsJsonSegmentsParser {
 
         int exitCode = process.waitFor();
         if (exitCode != 0 || responseBody.isBlank()) {
-            throw new IOException(curlExecutable + " failed for GNN segmentation. Exit code: " + exitCode +
+            throw new IOException(curlExecutable + " failed for PageR segmentation. Exit code: " + exitCode +
                     (errorBody.isBlank() ? "" : ", stderr: " + errorBody));
         }
 
@@ -66,7 +66,7 @@ public class GnnSegmentsParser extends AbstractRegionsJsonSegmentsParser {
             jsonNode = curlMapper.readTree(responseBody);
         } catch (Exception e) {
             String responsePrefix = responseBody.length() > 300 ? responseBody.substring(0, 300) + "..." : responseBody;
-            throw new IOException("GNN service returned non-JSON response: " + responsePrefix, e);
+            throw new IOException("PageR service returned non-JSON response: " + responsePrefix, e);
         }
         Path responsePath = outputsDir.resolve("response_" + System.currentTimeMillis() + ".json");
         curlMapper.writerWithDefaultPrettyPrinter().writeValue(responsePath.toFile(), jsonNode);

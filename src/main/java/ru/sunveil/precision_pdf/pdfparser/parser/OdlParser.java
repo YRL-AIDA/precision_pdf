@@ -12,6 +12,7 @@ import ru.sunveil.precision_pdf.pdfparser.model.*;
 import ru.sunveil.precision_pdf.pdfparser.model.core.BoundingBox;
 import ru.sunveil.precision_pdf.pdfparser.parser.pdfbox.AbstractPdfBoxParser;
 import ru.sunveil.precision_pdf.pdfparser.table.TableType;
+import ru.sunveil.precision_pdf.pdfparser.util.BlockTextLayoutBuilder;
 
 import java.io.File;
 import java.io.IOException;
@@ -251,7 +252,7 @@ public class OdlParser extends AbstractPdfBoxParser {
 
     /**
      * Maps ODL JSON blocks into Header / Paragraph / OtherBlock so {@link ru.sunveil.precision_pdf.pdfparser.export.HtmlExporter}
-     * (and JSON exporters that read these lists) behave like Precision / GNN pipelines.
+     * (and JSON exporters that read these lists) behave like Precision / PageR pipelines.
      */
     private void fillSemanticBlocksFromOdl(JsonNode root, List<PdfPage> pages, boolean odlHeuristicTableModel) {
         JsonNode kids = root.path("kids");
@@ -291,6 +292,7 @@ public class OdlParser extends AbstractPdfBoxParser {
                     .thenComparingDouble(b -> b.centerX));
 
             int order = 0;
+            int[] wordOrderRef = new int[]{0};
             for (LayoutBlock block : layoutBlocks) {
                 if (block.table != null) {
                     block.table.setOrder(order);
@@ -302,26 +304,48 @@ public class OdlParser extends AbstractPdfBoxParser {
                 if (draft == null) {
                     continue;
                 }
+                List<Word> blockWords = new ArrayList<>();
+                List<TextLine> blockLines = BlockTextLayoutBuilder.buildTextLines(
+                        draft.pageNumber,
+                        draft.boundingBox,
+                        draft.text,
+                        order,
+                        wordOrderRef,
+                        blockWords);
+                page.getWords().addAll(blockWords);
+                page.getTextLines().addAll(blockLines);
+                if (!blockLines.isEmpty()) {
+                    BlockTextLayoutBuilder.appendTextChunk(page, order, blockLines);
+                }
+
                 switch (draft.blockKind) {
                     case HEADER -> {
-                        Header header = new Header(draft.pageNumber, draft.boundingBox, draft.text, order, List.of());
+                        Header header = new Header(draft.pageNumber, draft.boundingBox, draft.text, order, blockLines);
                         page.getHeaders().add(header);
                         page.addBlock(header);
                     }
                     case PARAGRAPH -> {
-                        Paragraph paragraph = new Paragraph(draft.pageNumber, draft.boundingBox, draft.text, order, List.of());
+                        Paragraph paragraph = new Paragraph(
+                                draft.pageNumber, draft.boundingBox, draft.text, order, blockLines);
                         page.getParagraphs().add(paragraph);
                         page.addBlock(paragraph);
                     }
                     case OTHER -> {
                         OtherBlock other = new OtherBlock(
-                                draft.pageNumber, draft.boundingBox, draft.text, order, draft.odlType, List.of());
+                                draft.pageNumber, draft.boundingBox, draft.text, order, draft.odlType, blockLines);
                         page.getOtherBlocks().add(other);
                         page.addBlock(other);
                     }
                 }
-                order++;
+                order += Math.max(blockLines.size(), 1);
             }
+
+            page.getWords().sort(Comparator.comparingInt(Word::getOrder));
+            page.getTextLines().sort(Comparator.comparingInt(TextLine::getOrder));
+            page.getPdfTextChunks().sort(Comparator.comparingInt(PdfTextChunk::getOrder));
+            page.getHeaders().sort(Comparator.comparingInt(Header::getOrder));
+            page.getParagraphs().sort(Comparator.comparingInt(Paragraph::getOrder));
+            page.getOtherBlocks().sort(Comparator.comparingInt(OtherBlock::getOrder));
         }
     }
 

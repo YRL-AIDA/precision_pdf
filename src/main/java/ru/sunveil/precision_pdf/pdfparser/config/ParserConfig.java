@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 @ConfigurationProperties(prefix = "pdf.parser")
 public class ParserConfig {
-    private String parserType = "pdfbox";
+    private String parserType = "precision-pdf";
     private boolean enableMemoryMapping = false;
     private int maxMemoryUsageMb = 100;
     private boolean ignoreCorrupted = false;
