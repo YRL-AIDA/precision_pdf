@@ -11,7 +11,7 @@ import opendataloader_pdf
 
 SCAN_LIKE_MAX_NATIVE_CHARS = 2000
 
-
+## opendataloader-pdf[hybrid]" && opendataloader-pdf-hybrid --port 5002
 def _normalize_odl_mode(raw: str | None) -> str:
     m = (raw or "heuristic").strip().lower().replace("_", "-")
     if m in ("merge", "both", "merge-tables", "mergetables"):

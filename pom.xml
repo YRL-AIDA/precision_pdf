@@ -98,6 +98,12 @@
                 </configuration>
             </plugin>
 
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+
             <!-- Maven Surefire Plugin for running tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

@@ -41,6 +41,9 @@ public class DeepSeekOcrParser extends AbstractRegionsJsonSegmentsParser {
         String mode = normalizeDeepseekMode(config);
         int dpi = config != null ? Math.max(72, config.getDeepseekOcrRenderDpi()) : 144;
 
+        LOGGER.info("DeepSeek OCR: pythonExecutable={}, scriptPath={}, mode={}, dpi={}", 
+                pythonExecutable, scriptPath, mode, dpi);
+
         ProcessBuilder processBuilder = new ProcessBuilder(
                 pythonExecutable,
                 scriptPath.toString(),
@@ -55,18 +58,13 @@ public class DeepSeekOcrParser extends AbstractRegionsJsonSegmentsParser {
         );
         processBuilder.redirectErrorStream(true);
         Process process = processBuilder.start();
-        /*
-         * Do not use readAllBytes() here: it blocks until the child exits, so Python stderr
-         * (_log) never reaches the JVM until the process finishes — and the pipe can fill,
-         * stalling the child. Drain lines in a side thread and log at DEBUG.
-         */
         StringBuilder captured = new StringBuilder();
         Thread drainer = new Thread(() -> {
             try (BufferedReader br = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = br.readLine()) != null) {
-                    LOGGER.debug("[deepseek_ocr_parser] {}", line);
+                    LOGGER.info("[deepseek_ocr_parser] {}", line);
                     synchronized (captured) {
                         if (captured.length() < 200_000) {
                             captured.append(line).append(System.lineSeparator());
@@ -82,13 +80,18 @@ public class DeepSeekOcrParser extends AbstractRegionsJsonSegmentsParser {
         drainer.join();
         String outputText = captured.toString();
         if (exitCode != 0) {
-            throw new IOException("DeepSeek OCR python failed with code " + exitCode + ". Output: " + outputText);
+            String errorMsg = "DeepSeek OCR python failed with code " + exitCode + ". Output:\n" + outputText;
+            LOGGER.error(errorMsg);
+            throw new IOException(errorMsg);
         }
 
         Path jsonPath = outputDir.resolve("segmentation.json");
         if (!Files.exists(jsonPath)) {
-            throw new IOException("DeepSeek OCR JSON not found: " + jsonPath + ". Output: " + outputText);
+            String errorMsg = "DeepSeek OCR JSON not found: " + jsonPath + ". Output:\n" + outputText;
+            LOGGER.error(errorMsg);
+            throw new IOException(errorMsg);
         }
+        LOGGER.info("DeepSeek OCR produced segmentation.json at {}", jsonPath);
         return jsonPath;
     }
 
